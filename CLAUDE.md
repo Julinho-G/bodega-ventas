@@ -56,6 +56,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 
 ## Caja y ventas (cómo está implementado)
 - `CajaService.obtenerTurnoAbierto(usuarioId, tx)` se usa dentro de transacciones; lanza 400 si no hay turno.
+- Dentro de `prisma.$transaction(async (tx) => ...)` NO usar `include` con varias relaciones ni `Promise.all`: Prisma lanza consultas en paralelo sobre la misma conexión (aviso de `pg` que será error en pg@9). Consultar paso a paso y leer el resultado con `include` después de la transacción.
 - Descontar stock SIEMPRE con `updateMany({ where: { id, stock: { gte: cantidad } }, data: { stock: { decrement } } })` y revisar `count`: evita stock negativo cuando dos cajas venden a la vez.
 - Anular venta: `updateMany` condicionado a `estado: PAGADA` (evita doble anulación), devolver stock y crear movimientos `AJUSTE` positivos con el motivo. El cajero solo anula sus ventas con su turno abierto; el ADMIN cualquiera.
 - La deuda de fiado vive en `ClientesService.deuda(clienteId, tx)`. Antes de fiar, cobrar o anular un fiado, llamar a `ClientesService.bloquear(clienteId, tx)` (`SELECT ... FOR UPDATE`) dentro de la transacción: evita superar el límite con operaciones simultáneas.

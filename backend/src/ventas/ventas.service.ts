@@ -67,7 +67,7 @@ export class VentasService {
       );
     }
 
-    const venta = await this.prisma.$transaction(async (tx) => {
+    const ventaId = await this.prisma.$transaction(async (tx) => {
       const turno = await this.caja.obtenerTurnoAbierto(usuario.id, tx);
 
       // --- Productos y cálculo de montos ---
@@ -150,6 +150,8 @@ export class VentasService {
       }
 
       // --- Venta, detalle y movimientos ---
+      // Se crea por pasos (cabecera, detalle, movimientos) para que cada
+      // consulta espere a la anterior dentro de la transacción
       const creada = await tx.venta.create({
         data: {
           turnoCajaId: turno.id,
@@ -157,16 +159,16 @@ export class VentasService {
           clienteId: dto.clienteId,
           metodoPago: dto.metodoPago,
           total,
-          detalles: {
-            create: lineas.map((l) => ({
-              productoId: l.producto.id,
-              cantidad: l.cantidad,
-              precioUnitario: l.producto.precioVenta, // precio congelado
-              subtotal: l.subtotal,
-            })),
-          },
         },
-        include: INCLUIR_DETALLE,
+      });
+      await tx.detalleVenta.createMany({
+        data: lineas.map((l) => ({
+          ventaId: creada.id,
+          productoId: l.producto.id,
+          cantidad: l.cantidad,
+          precioUnitario: l.producto.precioVenta, // precio congelado
+          subtotal: l.subtotal,
+        })),
       });
 
       await tx.movimientoInventario.createMany({
@@ -180,9 +182,14 @@ export class VentasService {
         })),
       });
 
-      return creada;
+      return creada.id;
     });
 
+    // Se lee la venta completa ya confirmada (fuera de la transacción)
+    const venta = await this.prisma.venta.findUniqueOrThrow({
+      where: { id: ventaId },
+      include: INCLUIR_DETALLE,
+    });
     const vuelto =
       dto.montoRecibido !== undefined
         ? aDecimal(dto.montoRecibido).minus(venta.total)
@@ -245,18 +252,23 @@ export class VentasService {
    * - El cajero solo las suyas y mientras su turno siga abierto.
    */
   async anular(id: number, dto: AnularVentaDto, usuario: UsuarioAutenticado) {
-    return this.prisma.$transaction(async (tx) => {
-      const venta = await tx.venta.findUnique({
-        where: { id },
-        include: { detalles: true, turnoCaja: true },
-      });
+    await this.prisma.$transaction(async (tx) => {
+      // Dentro de la transacción se consulta una tabla a la vez (sin include):
+      // la conexión de PostgreSQL atiende una consulta por vez
+      const venta = await tx.venta.findUnique({ where: { id } });
       if (!venta) throw new NotFoundException('Venta no encontrada');
+      const turnoCaja = await tx.turnoCaja.findUniqueOrThrow({
+        where: { id: venta.turnoCajaId },
+      });
+      const detalles = await tx.detalleVenta.findMany({
+        where: { ventaId: id },
+      });
 
       if (usuario.rol !== Rol.ADMIN) {
         if (venta.usuarioId !== usuario.id) {
           throw new ForbiddenException('Solo puedes anular tus propias ventas');
         }
-        if (venta.turnoCaja.estado !== EstadoTurno.ABIERTO) {
+        if (turnoCaja.estado !== EstadoTurno.ABIERTO) {
           throw new ForbiddenException(
             'El turno de esta venta ya se cerró: solo el administrador puede anularla',
           );
@@ -287,14 +299,14 @@ export class VentasService {
       if (count === 0)
         throw new ConflictException('La venta ya estaba anulada');
 
-      for (const d of venta.detalles) {
+      for (const d of detalles) {
         await tx.producto.update({
           where: { id: d.productoId },
           data: { stock: { increment: d.cantidad } },
         });
       }
       await tx.movimientoInventario.createMany({
-        data: venta.detalles.map((d) => ({
+        data: detalles.map((d) => ({
           productoId: d.productoId,
           ventaId: venta.id,
           usuarioId: usuario.id,
@@ -303,11 +315,11 @@ export class VentasService {
           motivo: `Anulación de venta #${venta.id}: ${dto.motivo.trim()}`,
         })),
       });
+    });
 
-      return tx.venta.findUniqueOrThrow({
-        where: { id },
-        include: INCLUIR_DETALLE,
-      });
+    return this.prisma.venta.findUniqueOrThrow({
+      where: { id },
+      include: INCLUIR_DETALLE,
     });
   }
 }
