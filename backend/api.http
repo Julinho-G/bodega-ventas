@@ -288,3 +288,54 @@ Content-Type: application/json
   "telefono": "912345678",
   "limiteCredito": 150
 }
+
+### =========================================================
+### INVENTARIO (cambios: solo ADMIN)
+### =========================================================
+
+### 34. Llegó mercadería: ingreso de varios productos con costo actualizado
+POST {{base}}/inventario/ingresos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nota": "Distribuidora San Martín, factura F001-458",
+  "items": [
+    { "productoId": 4, "cantidad": 24, "precioCompra": 2.0 },
+    { "productoId": 2, "cantidad": 10 }
+  ]
+}
+
+### 35. Merma: producto vencido o roto
+POST {{base}}/inventario/mermas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productoId": 5,
+  "cantidad": 2,
+  "motivo": "Tarros abollados"
+}
+
+### 36. Ajuste por conteo físico (escribe lo que realmente hay en el anaquel)
+POST {{base}}/inventario/ajustes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productoId": 3,
+  "stockReal": 17,
+  "motivo": "Inventario de fin de mes"
+}
+
+### 37. Kardex de un producto (entradas, salidas y saldo)
+GET {{base}}/inventario/kardex/4
+Authorization: Bearer {{token}}
+
+### 38. Kardex de un periodo (cambia las fechas)
+GET {{base}}/inventario/kardex/4?desde=2026-10-01&hasta=2026-10-31
+Authorization: Bearer {{token}}
+
+### 39. Auditoría: todas las mermas registradas
+GET {{base}}/inventario/movimientos?tipo=MERMA
+Authorization: Bearer {{token}}
