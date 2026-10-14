@@ -16,13 +16,12 @@ import {
 } from '../generated/prisma/client';
 import type { UsuarioAutenticado } from '../auth/auth.types';
 import { CajaService } from '../caja/caja.service';
+import { ClientesService } from '../clientes/clientes.service';
 import { aDecimal } from '../common/decimal';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnularVentaDto } from './dto/anular-venta.dto';
 import { FiltroVentasDto } from './dto/filtro-ventas.dto';
 import { RegistrarVentaDto } from './dto/registrar-venta.dto';
-
-type Db = PrismaService | Prisma.TransactionClient;
 
 const CERO = new Prisma.Decimal(0);
 
@@ -45,6 +44,7 @@ export class VentasService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly caja: CajaService,
+    private readonly clientes: ClientesService,
   ) {}
 
   /**
@@ -100,13 +100,15 @@ export class VentasService {
 
       // --- Validaciones de pago ---
       if (dto.clienteId) {
-        const cliente = await tx.cliente.findUnique({
+        const existe = await tx.cliente.findUnique({
           where: { id: dto.clienteId },
         });
-        if (!cliente) throw new BadRequestException('El cliente no existe');
+        if (!existe) throw new BadRequestException('El cliente no existe');
 
         if (dto.metodoPago === MetodoPago.FIADO) {
-          const deuda = await this.deudaCliente(cliente.id, tx);
+          // Bloquea al cliente: si otra caja le está fiando ahora, espera su turno
+          const cliente = await this.clientes.bloquear(existe.id, tx);
+          const deuda = await this.clientes.deuda(cliente.id, tx);
           const disponible = cliente.limiteCredito.minus(deuda);
           if (total.gt(disponible)) {
             throw new BadRequestException(
@@ -261,6 +263,22 @@ export class VentasService {
         }
       }
 
+      // Anular un fiado resta su total de la deuda del cliente. Si el cliente ya
+      // abonó ese dinero, la deuda quedaría negativa: primero hay que devolvérselo.
+      if (
+        venta.metodoPago === MetodoPago.FIADO &&
+        venta.estado === EstadoVenta.PAGADA &&
+        venta.clienteId
+      ) {
+        await this.clientes.bloquear(venta.clienteId, tx);
+        const deuda = await this.clientes.deuda(venta.clienteId, tx);
+        if (deuda.lt(venta.total)) {
+          throw new ConflictException(
+            `No se puede anular: el cliente debe S/ ${deuda.toFixed(2)} y la venta es de S/ ${venta.total.toFixed(2)}. Ya abonó parte de este fiado; devuélvele la diferencia antes de anular`,
+          );
+        }
+      }
+
       // Cambio condicional: si dos personas anulan a la vez, solo una lo logra
       const { count } = await tx.venta.updateMany({
         where: { id, estado: EstadoVenta.PAGADA },
@@ -291,21 +309,5 @@ export class VentasService {
         include: INCLUIR_DETALLE,
       });
     });
-  }
-
-  /** Deuda de un cliente = ventas al FIADO no anuladas − pagos que ya hizo */
-  async deudaCliente(clienteId: number, db: Db = this.prisma) {
-    const [fiado, pagos] = await Promise.all([
-      db.venta.aggregate({
-        where: {
-          clienteId,
-          metodoPago: MetodoPago.FIADO,
-          estado: EstadoVenta.PAGADA,
-        },
-        _sum: { total: true },
-      }),
-      db.pagoFiado.aggregate({ where: { clienteId }, _sum: { monto: true } }),
-    ]);
-    return (fiado._sum.total ?? CERO).minus(pagos._sum.monto ?? CERO);
   }
 }

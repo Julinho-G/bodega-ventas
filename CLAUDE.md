@@ -58,7 +58,9 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - `CajaService.obtenerTurnoAbierto(usuarioId, tx)` se usa dentro de transacciones; lanza 400 si no hay turno.
 - Descontar stock SIEMPRE con `updateMany({ where: { id, stock: { gte: cantidad } }, data: { stock: { decrement } } })` y revisar `count`: evita stock negativo cuando dos cajas venden a la vez.
 - Anular venta: `updateMany` condicionado a `estado: PAGADA` (evita doble anulación), devolver stock y crear movimientos `AJUSTE` positivos con el motivo. El cajero solo anula sus ventas con su turno abierto; el ADMIN cualquiera.
-- `VentasService.deudaCliente()` calcula la deuda de fiado; reutilizarla en el módulo de clientes.
+- La deuda de fiado vive en `ClientesService.deuda(clienteId, tx)`. Antes de fiar, cobrar o anular un fiado, llamar a `ClientesService.bloquear(clienteId, tx)` (`SELECT ... FOR UPDATE`) dentro de la transacción: evita superar el límite con operaciones simultáneas.
+- Un fiado no se puede anular si dejaría la deuda del cliente en negativo (409).
+- Solo el ADMIN asigna `limiteCredito`; cualquier usuario registra clientes y cobra pagos (con caja abierta).
 - Pagos de fiado (`PagoFiado`) se asumen en efectivo y suman al efectivo esperado del turno.
 - Fechas de filtros en formato `AAAA-MM-DD` interpretadas en hora de Lima (UTC-5).
 - Cada archivo e2e crea y borra sus propios datos; no depender de los productos del seed.
@@ -66,7 +68,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 ## Hoja de ruta
 - [x] Fase 1: modelo de datos
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
-- [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ (hecho) → clientes y pagos de fiado → inventario (ingresos, ajustes, mermas) → reportes
+- [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ (hecho) → inventario (ingresos, ajustes, mermas) → reportes
 - [ ] Fase 4: Frontend (login, productos, pantalla de caja con lector de código de barras)
 - [ ] Fase 5: Pruebas, Swagger, despliegue
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras

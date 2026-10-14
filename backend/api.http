@@ -226,3 +226,65 @@ Content-Type: application/json
 ### 26. Historial de turnos con su cuadre (solo ADMIN)
 GET {{base}}/caja/turnos
 Authorization: Bearer {{token}}
+
+### =========================================================
+### CLIENTES Y FIADO
+### =========================================================
+
+### 27. Registrar un cliente con límite de crédito (el límite solo lo asigna el ADMIN)
+# @name cliente
+POST {{base}}/clientes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Señora Rosa Quispe",
+  "dni": "45678912",
+  "telefono": "987654321",
+  "limiteCredito": 100
+}
+
+### Las siguientes peticiones usan el cliente creado en la 27
+@idCliente = {{cliente.response.body.id}}
+
+### 28. Buscar clientes por nombre o DNI
+GET {{base}}/clientes?buscar=rosa
+Authorization: Bearer {{token}}
+
+### 29. Venta al fiado (requiere la caja abierta: petición 18)
+POST {{base}}/ventas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "items": [{ "productoId": 5, "cantidad": 2 }],
+  "metodoPago": "FIADO",
+  "clienteId": {{idCliente}}
+}
+
+### 30. Lista de deudores (el que más debe primero)
+GET {{base}}/clientes?soloDeudores=true
+Authorization: Bearer {{token}}
+
+### 31. La clienta paga S/ 5 a cuenta (requiere la caja abierta)
+POST {{base}}/clientes/{{idCliente}}/pagos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "monto": 5
+}
+
+### 32. Estado de cuenta: fiados, pagos y saldo línea por línea
+GET {{base}}/clientes/{{idCliente}}/estado-cuenta
+Authorization: Bearer {{token}}
+
+### 33. Cambiar teléfono y subir el límite (límite: solo ADMIN)
+PATCH {{base}}/clientes/{{idCliente}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "telefono": "912345678",
+  "limiteCredito": 150
+}
