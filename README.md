@@ -41,6 +41,17 @@ Abre http://localhost:3000/api/health. Debe responder:
 
 Para ver las tablas y datos: `npm run db:studio`.
 
+## Atajos desde la carpeta raíz
+
+Desde `D:\bodega-ventas` (sin entrar a `backend`) también funcionan:
+
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Arranca la API |
+| `npm run test:e2e` | Corre las pruebas de punta a punta |
+| `npm run db:migrate` | Aplica migraciones pendientes y regenera el cliente de Prisma |
+| `npm run db:studio` | Abre el visor de la base de datos |
+
 ## Problemas comunes
 - **`db: "sin conexión"`** → Docker Desktop no está abierto o el contenedor no arrancó: `docker compose ps`.
 - **Puerto ocupado** → el proyecto usa el 5440 para no chocar con PostgreSQL instalados en Windows. Si también estuviera ocupado, cambia el primer número en `docker-compose.yml` y el puerto en `.env`.

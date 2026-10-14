@@ -339,3 +339,27 @@ Authorization: Bearer {{token}}
 ### 39. Auditoría: todas las mermas registradas
 GET {{base}}/inventario/movimientos?tipo=MERMA
 Authorization: Bearer {{token}}
+
+### =========================================================
+### REPORTES (solo ADMIN, fechas en hora de Lima)
+### =========================================================
+
+### 40. Resumen de HOY: ventas, costo, ganancia, margen, por método, por hora
+GET {{base}}/reportes/resumen
+Authorization: Bearer {{token}}
+
+### 41. Resumen de un periodo (cambia las fechas)
+GET {{base}}/reportes/resumen?desde=2026-10-01&hasta=2026-10-31
+Authorization: Bearer {{token}}
+
+### 42. Productos más vendidos del mes, ordenados por ganancia
+GET {{base}}/reportes/productos?desde=2026-10-01&hasta=2026-10-31&orden=ganancia&limite=10
+Authorization: Bearer {{token}}
+
+### 43. Productos más vendidos de hoy por cantidad
+GET {{base}}/reportes/productos?orden=cantidad
+Authorization: Bearer {{token}}
+
+### 44. Inventario valorizado por categoría
+GET {{base}}/reportes/inventario
+Authorization: Bearer {{token}}

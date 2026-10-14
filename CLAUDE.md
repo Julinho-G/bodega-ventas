@@ -26,7 +26,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 2. `cantidad` y `stock` son decimales: se vende a granel (KG, LT) y por unidad (UND).
 3. **Registrar una venta es una sola transacción** (`prisma.$transaction`): crear `Venta` + `DetalleVenta`, descontar `stock`, crear `MovimientoInventario` tipo `VENTA` (cantidad negativa). Si algo falla, se revierte todo.
 4. Validar stock suficiente antes de vender; no permitir stock negativo.
-5. `DetalleVenta.precioUnitario` guarda el precio del momento (histórico); nunca recalcular con el precio actual.
+5. `DetalleVenta.precioUnitario` y `DetalleVenta.costoUnitario` guardan el precio y el costo del momento (histórico); nunca recalcular con los valores actuales del producto. La ganancia se calcula con `costoUnitario`.
 6. Todo cambio de stock pasa por `MovimientoInventario` (ENTRADA, VENTA, AJUSTE, MERMA). Nunca actualizar `stock` sin su movimiento.
 7. Solo se puede vender con un `TurnoCaja` ABIERTO del usuario. Un usuario no puede tener dos turnos abiertos.
 8. Método `FIADO` exige `clienteId` y no puede superar `limiteCredito` (deuda = ventas FIADO PAGADAS − pagos en `PagoFiado`).
@@ -69,7 +69,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 ## Hoja de ruta
 - [x] Fase 1: modelo de datos
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
-- [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ ~~inventario~~ (hecho) → reportes
+- [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ ~~inventario~~ ~~reportes~~ (hecho): **backend completo**
 - [ ] Fase 4: Frontend (login, productos, pantalla de caja con lector de código de barras)
 - [ ] Fase 5: Pruebas, Swagger, despliegue
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
@@ -80,4 +80,11 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Merma: descuento condicionado (`stock >= cantidad`) y movimiento `MERMA` negativo con motivo obligatorio.
 - Ajuste por conteo: recibe `stockReal`, bloquea el producto (`FOR UPDATE`) y registra la diferencia como `AJUSTE` (+ sobrante / − faltante).
 - Invariante: `producto.stock` == suma de sus `MovimientoInventario.cantidad`. El kardex lo verifica en el campo `cuadra`.
+
+## Reportes (cómo está implementado)
+- Solo ADMIN. Periodo `desde`/`hasta` (AAAA-MM-DD); sin fechas = hoy en Lima (`hoyEnLima()`). Máximo un año.
+- Consultas SQL con `$queryRaw`: agrupar por fecha usando `((v.fecha AT TIME ZONE 'UTC') AT TIME ZONE 'America/Lima')`, porque las fechas se guardan en UTC.
+- En SQL crudo: `COUNT(*)::int` (evita BigInt en JSON) y sumas como `::text` convertidas a Decimal. Nunca interpolar texto del usuario con `Prisma.raw`; usar listas cerradas (ver `COLUMNA_ORDEN`).
+- Ganancia por línea = `subtotal − ROUND(costo_unitario × cantidad, 2)`. Solo ventas PAGADAS; las anuladas se informan aparte.
+- Las pruebas de reportes comparan ANTES/DESPUÉS porque la base puede tener ventas reales del día.
 

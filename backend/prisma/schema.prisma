@@ -154,6 +154,7 @@ model DetalleVenta {
   productoId     Int     @map("producto_id")
   cantidad       Decimal @db.Decimal(12, 3)
   precioUnitario Decimal @map("precio_unitario") @db.Decimal(10, 2) // precio congelado al momento de la venta
+  costoUnitario  Decimal @map("costo_unitario") @db.Decimal(10, 2) // costo congelado: permite calcular la ganancia real
   subtotal       Decimal @db.Decimal(10, 2)
 
   venta    Venta    @relation(fields: [ventaId], references: [id], onDelete: Cascade)

@@ -167,6 +167,7 @@ export class VentasService {
           productoId: l.producto.id,
           cantidad: l.cantidad,
           precioUnitario: l.producto.precioVenta, // precio congelado
+          costoUnitario: l.producto.precioCompra, // costo congelado (para la ganancia)
           subtotal: l.subtotal,
         })),
       });
