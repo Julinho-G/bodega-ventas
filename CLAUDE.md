@@ -62,13 +62,21 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Un fiado no se puede anular si dejaría la deuda del cliente en negativo (409).
 - Solo el ADMIN asigna `limiteCredito`; cualquier usuario registra clientes y cobra pagos (con caja abierta).
 - Pagos de fiado (`PagoFiado`) se asumen en efectivo y suman al efectivo esperado del turno.
-- Fechas de filtros en formato `AAAA-MM-DD` interpretadas en hora de Lima (UTC-5).
+- Fechas de filtros en formato `AAAA-MM-DD` interpretadas en hora de Lima (UTC-5): usar `inicioDelDia()` / `finDelDia()` de `src/common/fechas.ts`.
 - Cada archivo e2e crea y borra sus propios datos; no depender de los productos del seed.
 
 ## Hoja de ruta
 - [x] Fase 1: modelo de datos
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
-- [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ (hecho) → inventario (ingresos, ajustes, mermas) → reportes
+- [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ ~~inventario~~ (hecho) → reportes
 - [ ] Fase 4: Frontend (login, productos, pantalla de caja con lector de código de barras)
 - [ ] Fase 5: Pruebas, Swagger, despliegue
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
+
+## Inventario (cómo está implementado)
+- Ingresos, mermas y ajustes: solo ADMIN. Kardex: cualquier usuario. Listado de movimientos: ADMIN.
+- Ingreso multi-producto en una transacción; puede actualizar `precioCompra` y `precioVenta`. Si el costo nuevo supera el precio de venta se rechaza TODO el ingreso.
+- Merma: descuento condicionado (`stock >= cantidad`) y movimiento `MERMA` negativo con motivo obligatorio.
+- Ajuste por conteo: recibe `stockReal`, bloquea el producto (`FOR UPDATE`) y registra la diferencia como `AJUSTE` (+ sobrante / − faltante).
+- Invariante: `producto.stock` == suma de sus `MovimientoInventario.cantidad`. El kardex lo verifica en el campo `cuadra`.
+
