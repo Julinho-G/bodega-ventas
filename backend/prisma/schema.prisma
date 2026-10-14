@@ -1,0 +1,194 @@
+// ============================================================
+//  Sistema de Ventas - Bodega
+//  Esquema de base de datos (Prisma 7 + PostgreSQL)
+// ============================================================
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Enumeraciones ----------
+
+enum Rol {
+  ADMIN
+  CAJERO
+}
+
+enum UnidadMedida {
+  UND // unidad
+  KG  // kilogramo (venta a granel)
+  LT  // litro
+}
+
+enum EstadoTurno {
+  ABIERTO
+  CERRADO
+}
+
+enum MetodoPago {
+  EFECTIVO
+  YAPE
+  PLIN
+  TARJETA
+  FIADO
+}
+
+enum EstadoVenta {
+  PAGADA
+  ANULADA
+}
+
+enum TipoMovimiento {
+  ENTRADA // ingreso de mercadería
+  VENTA   // salida por venta
+  AJUSTE  // corrección de inventario (+/-)
+  MERMA   // vencido, malogrado
+}
+
+// ---------- Tablas ----------
+
+model Usuario {
+  id           Int          @id @default(autoincrement())
+  nombre       String
+  usuario      String       @unique
+  passwordHash String       @map("password_hash")
+  rol          Rol          @default(CAJERO)
+  activo       Boolean      @default(true)
+  creadoEn     DateTime     @default(now()) @map("creado_en")
+  turnos       TurnoCaja[]
+  ventas       Venta[]
+  movimientos  MovimientoInventario[]
+
+  @@map("usuarios")
+}
+
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  productos Producto[]
+
+  @@map("categorias")
+}
+
+model Producto {
+  id           Int          @id @default(autoincrement())
+  codigoBarras String?      @unique @map("codigo_barras")
+  nombre       String
+  categoriaId  Int          @map("categoria_id")
+  unidad       UnidadMedida @default(UND)
+  precioCompra Decimal      @map("precio_compra") @db.Decimal(10, 2)
+  precioVenta  Decimal      @map("precio_venta") @db.Decimal(10, 2)
+  stock        Decimal      @default(0) @db.Decimal(12, 3)
+  stockMinimo  Decimal      @default(0) @map("stock_minimo") @db.Decimal(12, 3)
+  activo       Boolean      @default(true)
+  creadoEn     DateTime     @default(now()) @map("creado_en")
+  actualizadoEn DateTime    @updatedAt @map("actualizado_en")
+
+  categoria   Categoria              @relation(fields: [categoriaId], references: [id])
+  detalles    DetalleVenta[]
+  movimientos MovimientoInventario[]
+
+  @@index([nombre])
+  @@map("productos")
+}
+
+model Cliente {
+  id            Int         @id @default(autoincrement())
+  nombre        String
+  dni           String?     @unique @db.VarChar(8)
+  telefono      String?
+  limiteCredito Decimal     @default(0) @map("limite_credito") @db.Decimal(10, 2)
+  creadoEn      DateTime    @default(now()) @map("creado_en")
+  ventas        Venta[]
+  pagosFiado    PagoFiado[]
+
+  @@map("clientes")
+}
+
+model TurnoCaja {
+  id           Int         @id @default(autoincrement())
+  usuarioId    Int         @map("usuario_id")
+  apertura     DateTime    @default(now())
+  montoInicial Decimal     @map("monto_inicial") @db.Decimal(10, 2)
+  cierre       DateTime?
+  montoContado Decimal?    @map("monto_contado") @db.Decimal(10, 2)
+  estado       EstadoTurno @default(ABIERTO)
+
+  usuario    Usuario     @relation(fields: [usuarioId], references: [id])
+  ventas     Venta[]
+  pagosFiado PagoFiado[]
+
+  @@index([usuarioId, estado])
+  @@map("turnos_caja")
+}
+
+model Venta {
+  id          Int         @id @default(autoincrement())
+  turnoCajaId Int         @map("turno_caja_id")
+  usuarioId   Int         @map("usuario_id")
+  clienteId   Int?        @map("cliente_id")
+  fecha       DateTime    @default(now())
+  total       Decimal     @db.Decimal(10, 2)
+  metodoPago  MetodoPago  @map("metodo_pago")
+  estado      EstadoVenta @default(PAGADA)
+
+  turnoCaja   TurnoCaja              @relation(fields: [turnoCajaId], references: [id])
+  usuario     Usuario                @relation(fields: [usuarioId], references: [id])
+  cliente     Cliente?               @relation(fields: [clienteId], references: [id])
+  detalles    DetalleVenta[]
+  movimientos MovimientoInventario[]
+
+  @@index([fecha])
+  @@map("ventas")
+}
+
+model DetalleVenta {
+  id             Int     @id @default(autoincrement())
+  ventaId        Int     @map("venta_id")
+  productoId     Int     @map("producto_id")
+  cantidad       Decimal @db.Decimal(12, 3)
+  precioUnitario Decimal @map("precio_unitario") @db.Decimal(10, 2) // precio congelado al momento de la venta
+  subtotal       Decimal @db.Decimal(10, 2)
+
+  venta    Venta    @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  producto Producto @relation(fields: [productoId], references: [id])
+
+  @@map("detalle_venta")
+}
+
+model MovimientoInventario {
+  id         Int            @id @default(autoincrement())
+  productoId Int            @map("producto_id")
+  ventaId    Int?           @map("venta_id")
+  usuarioId  Int            @map("usuario_id")
+  tipo       TipoMovimiento
+  cantidad   Decimal        @db.Decimal(12, 3) // positiva = entra, negativa = sale
+  motivo     String?
+  fecha      DateTime       @default(now())
+
+  producto Producto @relation(fields: [productoId], references: [id])
+  venta    Venta?   @relation(fields: [ventaId], references: [id])
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([productoId, fecha])
+  @@map("movimientos_inventario")
+}
+
+model PagoFiado {
+  id          Int      @id @default(autoincrement())
+  clienteId   Int      @map("cliente_id")
+  turnoCajaId Int      @map("turno_caja_id")
+  monto       Decimal  @db.Decimal(10, 2)
+  fecha       DateTime @default(now())
+
+  cliente   Cliente   @relation(fields: [clienteId], references: [id])
+  turnoCaja TurnoCaja @relation(fields: [turnoCajaId], references: [id])
+
+  @@map("pagos_fiado")
+}

@@ -1,0 +1,25 @@
+# Base de datos PostgreSQL para desarrollo local
+# Levantar:  docker compose up -d
+# Detener:   docker compose down        (los datos se conservan en el volumen)
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: bodega_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bodega
+      POSTGRES_PASSWORD: bodega123
+      POSTGRES_DB: bodega_db
+      TZ: America/Lima
+    ports:
+      - "5440:5432"
+    volumes:
+      - bodega_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bodega -d bodega_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  bodega_data:

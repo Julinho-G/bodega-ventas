@@ -1,0 +1,311 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  EstadoTurno,
+  EstadoVenta,
+  MetodoPago,
+  Prisma,
+  Rol,
+  TipoMovimiento,
+  UnidadMedida,
+} from '../generated/prisma/client';
+import type { UsuarioAutenticado } from '../auth/auth.types';
+import { CajaService } from '../caja/caja.service';
+import { aDecimal } from '../common/decimal';
+import { PrismaService } from '../prisma/prisma.service';
+import { AnularVentaDto } from './dto/anular-venta.dto';
+import { FiltroVentasDto } from './dto/filtro-ventas.dto';
+import { RegistrarVentaDto } from './dto/registrar-venta.dto';
+
+type Db = PrismaService | Prisma.TransactionClient;
+
+const CERO = new Prisma.Decimal(0);
+
+// Lo que se devuelve de cada venta
+const INCLUIR_DETALLE = {
+  detalles: {
+    include: {
+      producto: {
+        select: { id: true, nombre: true, unidad: true, codigoBarras: true },
+      },
+    },
+    orderBy: { id: 'asc' },
+  },
+  cliente: { select: { id: true, nombre: true } },
+  usuario: { select: { id: true, nombre: true } },
+} satisfies Prisma.VentaInclude;
+
+@Injectable()
+export class VentasService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly caja: CajaService,
+  ) {}
+
+  /**
+   * Registra una venta en UNA sola transacción:
+   *   1. crea la venta y su detalle (con el precio del momento)
+   *   2. descuenta el stock de cada producto
+   *   3. registra un movimiento de inventario tipo VENTA por producto
+   * Si cualquier paso falla (ej. falta stock), se revierte TODO.
+   */
+  async registrar(dto: RegistrarVentaDto, usuario: UsuarioAutenticado) {
+    const ids = dto.items.map((i) => i.productoId);
+    if (new Set(ids).size !== ids.length) {
+      throw new BadRequestException(
+        'Hay productos repetidos en la venta: suma las cantidades en una sola línea',
+      );
+    }
+    if (dto.metodoPago === MetodoPago.FIADO && !dto.clienteId) {
+      throw new BadRequestException(
+        'Para vender al fiado debes elegir un cliente',
+      );
+    }
+
+    const venta = await this.prisma.$transaction(async (tx) => {
+      const turno = await this.caja.obtenerTurnoAbierto(usuario.id, tx);
+
+      // --- Productos y cálculo de montos ---
+      const productos = await tx.producto.findMany({
+        where: { id: { in: ids } },
+      });
+      const lineas = dto.items.map((item) => {
+        const producto = productos.find((p) => p.id === item.productoId);
+        if (!producto || !producto.activo) {
+          throw new BadRequestException(
+            `El producto ${item.productoId} no existe o está desactivado`,
+          );
+        }
+        if (
+          producto.unidad === UnidadMedida.UND &&
+          !Number.isInteger(item.cantidad)
+        ) {
+          throw new BadRequestException(
+            `"${producto.nombre}" se vende por unidad: la cantidad debe ser entera`,
+          );
+        }
+        const cantidad = aDecimal(item.cantidad);
+        // Subtotal redondeado a céntimos (ej. 0.333 kg × S/ 4.50 = 1.4985 → 1.50)
+        const subtotal = producto.precioVenta
+          .times(cantidad)
+          .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+        return { producto, cantidad, subtotal };
+      });
+      const total = lineas.reduce((acc, l) => acc.plus(l.subtotal), CERO);
+
+      // --- Validaciones de pago ---
+      if (dto.clienteId) {
+        const cliente = await tx.cliente.findUnique({
+          where: { id: dto.clienteId },
+        });
+        if (!cliente) throw new BadRequestException('El cliente no existe');
+
+        if (dto.metodoPago === MetodoPago.FIADO) {
+          const deuda = await this.deudaCliente(cliente.id, tx);
+          const disponible = cliente.limiteCredito.minus(deuda);
+          if (total.gt(disponible)) {
+            throw new BadRequestException(
+              `Crédito insuficiente para ${cliente.nombre}: debe S/ ${deuda.toFixed(2)}, ` +
+                `límite S/ ${cliente.limiteCredito.toFixed(2)}, disponible S/ ${disponible.toFixed(2)}`,
+            );
+          }
+        }
+      }
+      if (dto.montoRecibido !== undefined) {
+        if (dto.metodoPago !== MetodoPago.EFECTIVO) {
+          throw new BadRequestException(
+            'montoRecibido solo aplica a pagos en EFECTIVO',
+          );
+        }
+        if (aDecimal(dto.montoRecibido).lt(total)) {
+          throw new BadRequestException(
+            `El monto recibido (S/ ${dto.montoRecibido.toFixed(2)}) no cubre el total (S/ ${total.toFixed(2)})`,
+          );
+        }
+      }
+
+      // --- Descontar stock de forma segura ---
+      // El UPDATE solo se aplica si todavía hay stock suficiente. Así, si dos cajas
+      // venden el último producto al mismo tiempo, solo una lo logra.
+      for (const l of lineas) {
+        const { count } = await tx.producto.updateMany({
+          where: { id: l.producto.id, stock: { gte: l.cantidad } },
+          data: { stock: { decrement: l.cantidad } },
+        });
+        if (count === 0) {
+          const actual = await tx.producto.findUniqueOrThrow({
+            where: { id: l.producto.id },
+          });
+          throw new BadRequestException(
+            `Stock insuficiente de "${l.producto.nombre}": quedan ${actual.stock.toString()} ${l.producto.unidad}`,
+          );
+        }
+      }
+
+      // --- Venta, detalle y movimientos ---
+      const creada = await tx.venta.create({
+        data: {
+          turnoCajaId: turno.id,
+          usuarioId: usuario.id,
+          clienteId: dto.clienteId,
+          metodoPago: dto.metodoPago,
+          total,
+          detalles: {
+            create: lineas.map((l) => ({
+              productoId: l.producto.id,
+              cantidad: l.cantidad,
+              precioUnitario: l.producto.precioVenta, // precio congelado
+              subtotal: l.subtotal,
+            })),
+          },
+        },
+        include: INCLUIR_DETALLE,
+      });
+
+      await tx.movimientoInventario.createMany({
+        data: lineas.map((l) => ({
+          productoId: l.producto.id,
+          ventaId: creada.id,
+          usuarioId: usuario.id,
+          tipo: TipoMovimiento.VENTA,
+          cantidad: l.cantidad.negated(), // sale del inventario
+          motivo: `Venta #${creada.id}`,
+        })),
+      });
+
+      return creada;
+    });
+
+    const vuelto =
+      dto.montoRecibido !== undefined
+        ? aDecimal(dto.montoRecibido).minus(venta.total)
+        : null;
+    return { ...venta, montoRecibido: dto.montoRecibido ?? null, vuelto };
+  }
+
+  /** ADMIN ve todas las ventas; el cajero solo las suyas */
+  async listar(filtro: FiltroVentasDto, usuario: UsuarioAutenticado) {
+    const where: Prisma.VentaWhereInput = {
+      usuarioId: usuario.rol === Rol.ADMIN ? undefined : usuario.id,
+      turnoCajaId: filtro.turnoId,
+      fecha: {
+        gte: filtro.desde
+          ? new Date(`${filtro.desde}T00:00:00-05:00`)
+          : undefined,
+        lte: filtro.hasta
+          ? new Date(`${filtro.hasta}T23:59:59.999-05:00`)
+          : undefined,
+      },
+    };
+    const [total, ventas] = await this.prisma.$transaction([
+      this.prisma.venta.count({ where }),
+      this.prisma.venta.findMany({
+        where,
+        include: {
+          cliente: { select: { id: true, nombre: true } },
+          usuario: { select: { id: true, nombre: true } },
+          _count: { select: { detalles: true } },
+        },
+        orderBy: { fecha: 'desc' },
+        skip: (filtro.pagina - 1) * filtro.limite,
+        take: filtro.limite,
+      }),
+    ]);
+    return {
+      datos: ventas,
+      total,
+      pagina: filtro.pagina,
+      limite: filtro.limite,
+    };
+  }
+
+  async obtener(id: number, usuario: UsuarioAutenticado) {
+    const venta = await this.prisma.venta.findUnique({
+      where: { id },
+      include: INCLUIR_DETALLE,
+    });
+    if (!venta) throw new NotFoundException('Venta no encontrada');
+    if (usuario.rol !== Rol.ADMIN && venta.usuarioId !== usuario.id) {
+      throw new ForbiddenException('Solo puedes ver tus propias ventas');
+    }
+    return venta;
+  }
+
+  /**
+   * Anula una venta: NO se borra. Cambia a ANULADA y devuelve el stock
+   * con movimientos de AJUSTE que indican el motivo.
+   * - El ADMIN puede anular cualquier venta.
+   * - El cajero solo las suyas y mientras su turno siga abierto.
+   */
+  async anular(id: number, dto: AnularVentaDto, usuario: UsuarioAutenticado) {
+    return this.prisma.$transaction(async (tx) => {
+      const venta = await tx.venta.findUnique({
+        where: { id },
+        include: { detalles: true, turnoCaja: true },
+      });
+      if (!venta) throw new NotFoundException('Venta no encontrada');
+
+      if (usuario.rol !== Rol.ADMIN) {
+        if (venta.usuarioId !== usuario.id) {
+          throw new ForbiddenException('Solo puedes anular tus propias ventas');
+        }
+        if (venta.turnoCaja.estado !== EstadoTurno.ABIERTO) {
+          throw new ForbiddenException(
+            'El turno de esta venta ya se cerró: solo el administrador puede anularla',
+          );
+        }
+      }
+
+      // Cambio condicional: si dos personas anulan a la vez, solo una lo logra
+      const { count } = await tx.venta.updateMany({
+        where: { id, estado: EstadoVenta.PAGADA },
+        data: { estado: EstadoVenta.ANULADA },
+      });
+      if (count === 0)
+        throw new ConflictException('La venta ya estaba anulada');
+
+      for (const d of venta.detalles) {
+        await tx.producto.update({
+          where: { id: d.productoId },
+          data: { stock: { increment: d.cantidad } },
+        });
+      }
+      await tx.movimientoInventario.createMany({
+        data: venta.detalles.map((d) => ({
+          productoId: d.productoId,
+          ventaId: venta.id,
+          usuarioId: usuario.id,
+          tipo: TipoMovimiento.AJUSTE,
+          cantidad: d.cantidad, // vuelve al inventario
+          motivo: `Anulación de venta #${venta.id}: ${dto.motivo.trim()}`,
+        })),
+      });
+
+      return tx.venta.findUniqueOrThrow({
+        where: { id },
+        include: INCLUIR_DETALLE,
+      });
+    });
+  }
+
+  /** Deuda de un cliente = ventas al FIADO no anuladas − pagos que ya hizo */
+  async deudaCliente(clienteId: number, db: Db = this.prisma) {
+    const [fiado, pagos] = await Promise.all([
+      db.venta.aggregate({
+        where: {
+          clienteId,
+          metodoPago: MetodoPago.FIADO,
+          estado: EstadoVenta.PAGADA,
+        },
+        _sum: { total: true },
+      }),
+      db.pagoFiado.aggregate({ where: { clienteId }, _sum: { monto: true } }),
+    ]);
+    return (fiado._sum.total ?? CERO).minus(pagos._sum.monto ?? CERO);
+  }
+}

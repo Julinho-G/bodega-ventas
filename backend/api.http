@@ -1,0 +1,228 @@
+### =========================================================
+### Pruebas manuales de la API de la bodega
+### Requiere la extensión "REST Client" de VS Code (Huachao Mao).
+### Haz clic en "Send Request" que aparece encima de cada petición.
+### =========================================================
+
+@base = http://localhost:3000/api
+
+### 1. Salud de la API (pública)
+GET {{base}}/health
+
+### 2. Iniciar sesión como admin → guarda el token automáticamente
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "usuario": "admin",
+  "password": "admin123"
+}
+
+### El token de la respuesta anterior se reutiliza en las siguientes peticiones
+@token = {{login.response.body.accessToken}}
+
+### 3. Ver mi perfil (requiere token)
+GET {{base}}/auth/perfil
+Authorization: Bearer {{token}}
+
+### 4. Listar usuarios (solo ADMIN)
+GET {{base}}/usuarios
+Authorization: Bearer {{token}}
+
+### 5. Crear un cajero (solo ADMIN)
+POST {{base}}/usuarios
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "María Quispe",
+  "usuario": "maria",
+  "password": "caja123"
+}
+
+### 6. Desactivar / reactivar un usuario (cambia el id)
+PATCH {{base}}/usuarios/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "activo": false
+}
+
+### 7. Probar sin token → debe responder 401
+GET {{base}}/usuarios
+
+### =========================================================
+### CATEGORÍAS
+### =========================================================
+
+### 8. Listar categorías (con cantidad de productos)
+GET {{base}}/categorias
+Authorization: Bearer {{token}}
+
+### 9. Crear categoría (solo ADMIN)
+POST {{base}}/categorias
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Golosinas"
+}
+
+### =========================================================
+### PRODUCTOS
+### =========================================================
+
+### 10. Buscar productos por nombre o código (paginado)
+GET {{base}}/productos?buscar=arroz
+Authorization: Bearer {{token}}
+
+### 11. Buscar por código de barras (lo usará la caja con el lector)
+GET {{base}}/productos/codigo/7750243001234
+Authorization: Bearer {{token}}
+
+### 12. Productos con stock bajo (para reponer)
+GET {{base}}/productos/stock-bajo
+Authorization: Bearer {{token}}
+
+### 13. Crear producto por unidad con stock inicial (solo ADMIN)
+# @name nuevoProducto
+POST {{base}}/productos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "codigoBarras": "7750885012345",
+  "nombre": "Galletas Soda Field",
+  "categoriaId": 5,
+  "unidad": "UND",
+  "precioCompra": 0.7,
+  "precioVenta": 1.0,
+  "stockInicial": 24,
+  "stockMinimo": 6
+}
+
+### 14. Crear producto a granel (KG) sin código de barras
+POST {{base}}/productos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Frijol canario (granel)",
+  "categoriaId": 1,
+  "unidad": "KG",
+  "precioCompra": 7.5,
+  "precioVenta": 9.0,
+  "stockInicial": 12.5,
+  "stockMinimo": 3
+}
+
+### Las peticiones 15 y 16 editan el producto creado en la 13
+@idNuevo = {{nuevoProducto.response.body.id}}
+
+### 15. Editar precio y stock mínimo (el stock NO se edita aquí)
+PATCH {{base}}/productos/{{idNuevo}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "precioVenta": 4.8,
+  "stockMinimo": 10
+}
+
+### 16. Descontinuar un producto (no se borra, se desactiva)
+PATCH {{base}}/productos/{{idNuevo}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "activo": false
+}
+
+### 17. Restaurar el Arroz del seed (id 1) a sus valores originales
+PATCH {{base}}/productos/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "activo": true,
+  "precioVenta": 4.5,
+  "stockMinimo": 5
+}
+
+### =========================================================
+### CAJA (TURNOS)
+### =========================================================
+
+### 18. Abrir mi caja con el sencillo inicial
+POST {{base}}/caja/abrir
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "montoInicial": 50
+}
+
+### 19. Ver mi turno abierto y el resumen en vivo
+GET {{base}}/caja/actual
+Authorization: Bearer {{token}}
+
+### =========================================================
+### VENTAS (requieren la caja abierta)
+### =========================================================
+
+### 20. Venta en efectivo: arroz por unidad + azúcar a granel, con vuelto
+# @name venta
+POST {{base}}/ventas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "items": [
+    { "productoId": 1, "cantidad": 2 },
+    { "productoId": 2, "cantidad": 0.5 }
+  ],
+  "metodoPago": "EFECTIVO",
+  "montoRecibido": 20
+}
+
+### 21. Venta por Yape
+POST {{base}}/ventas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "items": [{ "productoId": 4, "cantidad": 3 }],
+  "metodoPago": "YAPE"
+}
+
+### 22. Ver el detalle de la venta 20
+GET {{base}}/ventas/{{venta.response.body.id}}
+Authorization: Bearer {{token}}
+
+### 23. Listar ventas de hoy (cambia la fecha)
+GET {{base}}/ventas?desde=2026-10-13&hasta=2026-10-13
+Authorization: Bearer {{token}}
+
+### 24. Anular la venta 20 (devuelve el stock)
+POST {{base}}/ventas/{{venta.response.body.id}}/anular
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "motivo": "Error al registrar"
+}
+
+### 25. Cerrar la caja con lo que contaste en el cajón
+POST {{base}}/caja/cerrar
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "montoContado": 50
+}
+
+### 26. Historial de turnos con su cuadre (solo ADMIN)
+GET {{base}}/caja/turnos
+Authorization: Bearer {{token}}
