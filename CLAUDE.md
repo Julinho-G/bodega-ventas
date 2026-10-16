@@ -10,7 +10,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - **Backend:** NestJS 11 + TypeScript (carpeta `backend/`)
 - **ORM:** Prisma 7 con `@prisma/adapter-pg`. Cliente generado en `backend/src/generated/prisma` (no editar, no versionar).
 - **Base de datos:** PostgreSQL 17 en Docker (`docker-compose.yml`), expuesto en el puerto **5440** (5432/5433 los ocupan PostgreSQL locales de Windows)
-- **Frontend (pendiente):** React + Vite + TypeScript + Tailwind + shadcn/ui + TanStack Query (carpeta `frontend/`)
+- **Frontend (en curso):** React 19 + Vite + TypeScript + Tailwind CSS 4 + TanStack Query + React Router (carpeta `frontend/`)
 - **Auth (hecho):** JWT (`@nestjs/jwt`) con roles `ADMIN` y `CAJERO`; contraseñas con `bcryptjs`
 
 ## Comandos (desde `backend/`)
@@ -20,6 +20,13 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - `npm run db:studio` – ver la base de datos en el navegador
 - `npm run lint`, `npm run test` y `npm run test:e2e` (e2e usa la BD del .env)
 - `api.http` – peticiones de prueba (extensión REST Client)
+- `recorrido.http` – día completo en la bodega, paso a paso con el resultado ESPERADO
+
+## Comandos del frontend (desde `frontend/`)
+- `npm run dev` – http://localhost:5173 (puerto fijo: el backend solo acepta ese origen por CORS)
+- `npm run build` (incluye `tsc`), `npm run lint` (oxlint), `npm run format` (prettier)
+- Variables en `frontend/.env`: `VITE_API_URL`, `VITE_NOMBRE_BODEGA`
+- Desde la raíz: `npm run web`
 
 ## Reglas de negocio (no romper)
 1. **Dinero y cantidades siempre `Decimal`**, nunca `float`/`number` para cálculos de montos. Usar `Prisma.Decimal` en la lógica.
@@ -70,7 +77,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - [x] Fase 1: modelo de datos
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
 - [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ ~~inventario~~ ~~reportes~~ (hecho): **backend completo**
-- [ ] Fase 4: Frontend (login, productos, pantalla de caja con lector de código de barras)
+- [ ] Fase 4: Frontend: ~~login~~ ~~abrir/cerrar caja~~ (hecho) · pantalla de venta con lector de código de barras · productos · clientes/fiado · reportes
 - [ ] Fase 5: Pruebas, Swagger, despliegue
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
 
@@ -87,4 +94,14 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - En SQL crudo: `COUNT(*)::int` (evita BigInt en JSON) y sumas como `::text` convertidas a Decimal. Nunca interpolar texto del usuario con `Prisma.raw`; usar listas cerradas (ver `COLUMNA_ORDEN`).
 - Ganancia por línea = `subtotal − ROUND(costo_unitario × cantidad, 2)`. Solo ventas PAGADAS; las anuladas se informan aparte.
 - Las pruebas de reportes comparan ANTES/DESPUÉS porque la base puede tener ventas reales del día.
+
+## Frontend (cómo está implementado)
+- Todas las peticiones pasan por `api()` de `src/lib/api.ts`: agrega el token y convierte los errores de NestJS en `ErrorApi` (`status` + `message` legible). Un 401 con sesión abierta cierra la sesión.
+- Datos del servidor con TanStack Query (`useQuery` / `useMutation`); después de modificar algo, `invalidateQueries` de la clave afectada (ej. `['caja']`).
+- Sesión en `src/sesion/`: `ProveedorSesion` guarda `{ token, usuario }` en localStorage (`bodega.sesion`, siempre con try/catch) y la valida con `/auth/perfil` al abrir. Usar el hook `useSesion()`.
+- Rutas: `/ingresar` pública; el resto va dentro de `<Marco>` (exige sesión, muestra la cabecera).
+- `GET /caja/actual` responde 400 si no hay turno: en el frontend eso significa "caja cerrada", no un error.
+- Montos: la API los envía como texto; `soles()` de `src/lib/dinero.ts` solo los formatea. Los cálculos de dinero se hacen en el backend. Para leer lo que escribe el usuario: `leerMonto()` (acepta coma o punto, máx. 2 decimales).
+- Diseño: colores en `@theme` de `src/index.css` (`tinta`, `pared`, `papel`, `linea`, `cartulina`, `verde`, `rojo`). El amarillo `cartulina` (componente `Etiqueta`, forma de cartel de precio) se usa SOLO para montos de dinero importantes. Cifras grandes con la utilidad `cifra`. Componentes base en `src/componentes/ui.tsx` (`Boton`, `Campo`, `Aviso`, `Etiqueta`).
+- Textos de la interfaz en español claro, desde el punto de vista del cajero ("Abrir caja", "Efectivo que debe haber en el cajón").
 

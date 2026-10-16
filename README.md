@@ -39,6 +39,16 @@ Abre http://localhost:3000/api/health. Debe responder:
 { "status": "ok", "db": "ok", ... }
 ```
 
+```bash
+# 3. Frontend (en OTRA terminal, con la API encendida)
+cd frontend
+cp .env.example .env          # en Windows (PowerShell): copy .env.example .env
+npm install
+npm run dev
+```
+
+Abre http://localhost:5173 e ingresa con `admin` / `admin123`.
+
 Para ver las tablas y datos: `npm run db:studio`.
 
 ## Atajos desde la carpeta raíz
@@ -47,7 +57,8 @@ Desde `D:\bodega-ventas` (sin entrar a `backend`) también funcionan:
 
 | Comando | Qué hace |
 |---|---|
-| `npm run dev` | Arranca la API |
+| `npm run dev` | Arranca la API (backend) |
+| `npm run web` | Arranca la pantalla de caja (frontend) en http://localhost:5173 |
 | `npm run test:e2e` | Corre las pruebas de punta a punta |
 | `npm run db:migrate` | Aplica migraciones pendientes y regenera el cliente de Prisma |
 | `npm run db:studio` | Abre el visor de la base de datos |
@@ -55,6 +66,8 @@ Desde `D:\bodega-ventas` (sin entrar a `backend`) también funcionan:
 ## Problemas comunes
 - **`db: "sin conexión"`** → Docker Desktop no está abierto o el contenedor no arrancó: `docker compose ps`.
 - **Puerto ocupado** → el proyecto usa el 5440 para no chocar con PostgreSQL instalados en Windows. Si también estuviera ocupado, cambia el primer número en `docker-compose.yml` y el puerto en `.env`.
+- **El frontend dice "No hay conexión con el sistema"** → la API no está encendida: `npm run dev` en otra terminal.
+- **`Port 5173 is already in use`** → ya tienes el frontend abierto en otra terminal.
 - **Cambié `schema.prisma`** → ejecuta `npm run db:migrate` (crea la migración y regenera el cliente).
 
 ## Estructura
@@ -62,6 +75,12 @@ Desde `D:\bodega-ventas` (sin entrar a `backend`) también funcionan:
 bodega-ventas/
 ├── docker-compose.yml     PostgreSQL
 ├── CLAUDE.md              contexto para Claude en VS Code
+├── frontend/              pantalla de caja (React + Vite)
+│   └── src/
+│       ├── lib/api.ts     cliente de la API (token y errores)
+│       ├── sesion/        ingreso y cierre de sesión
+│       ├── componentes/   botones, campos, cabecera
+│       └── paginas/       Ingreso, Caja
 └── backend/
     ├── prisma/
     │   ├── schema.prisma  modelo de datos

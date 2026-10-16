@@ -1,0 +1,5 @@
+# Guarda todos los archivos de texto con saltos de línea LF (estilo Linux).
+# Evita el aviso "LF will be replaced by CRLF" en Windows.
+* text=auto eol=lf
+*.png binary
+*.woff2 binary

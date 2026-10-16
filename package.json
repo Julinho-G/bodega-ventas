@@ -1,13 +1,15 @@
 {
   "name": "bodega-ventas",
   "private": true,
-  "description": "Sistema de ventas para bodega. Atajos para ejecutar los comandos del backend desde la carpeta raíz.",
+  "description": "Sistema de ventas para bodega. Atajos para ejecutar los comandos del backend y del frontend desde la carpeta raíz.",
   "scripts": {
     "dev": "npm --prefix backend run start:dev",
     "start:dev": "npm --prefix backend run start:dev",
+    "web": "npm --prefix frontend run dev",
+    "build:web": "npm --prefix frontend run build",
     "test": "npm --prefix backend run test",
     "test:e2e": "npm --prefix backend run test:e2e",
-    "lint": "npm --prefix backend run lint",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
     "db:migrate": "npm --prefix backend run db:migrate",
     "db:studio": "npm --prefix backend run db:studio"
   }

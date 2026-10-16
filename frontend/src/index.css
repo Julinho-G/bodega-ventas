@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+/* Fuente instalada con npm (no depende de internet): Archivo, con ancho variable */
+@import '@fontsource-variable/archivo/wdth.css';
+
+/*
+ * Colores de la bodega:
+ *  - tinta:     azul oscuro de plumón, para textos y botones principales
+ *  - pared:     fondo gris azulado, descansa la vista en jornadas largas
+ *  - cartulina: amarillo de los carteles de precio; SOLO para montos de dinero
+ */
+@theme {
+  --font-sans: 'Archivo Variable', system-ui, sans-serif;
+
+  --color-tinta: #18233d;
+  --color-tinta-suave: #4a5873;
+  --color-pared: #e7ecf0;
+  --color-papel: #ffffff;
+  --color-linea: #c9d2dc;
+  --color-cartulina: #ffe04a;
+  --color-cartulina-borde: #d9ac00;
+  --color-verde: #17734a;
+  --color-verde-fondo: #e3f4ea;
+  --color-rojo: #b42318;
+  --color-rojo-fondo: #fdecea;
+}
+
+@layer base {
+  html {
+    background: var(--color-pared);
+    color: var(--color-tinta);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100dvh;
+  }
+}
+
+/* Cifras de dinero: letra angosta y gruesa, como escrita con plumón en el cartel */
+@utility cifra {
+  font-stretch: 78%;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Forma de etiqueta de precio (punta a la izquierda) */
+@utility forma-etiqueta {
+  clip-path: polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 0 50%);
+}
