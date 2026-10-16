@@ -1,0 +1,359 @@
+### ==================================================================
+### RECORRIDO GUIADO: UN DÍA EN LA BODEGA
+###
+### Ejecuta las peticiones EN ORDEN, de arriba hacia abajo (clic en "Send Request").
+### Cada paso indica qué debes ver. Si algo no coincide, anota el número del paso.
+###
+### Se puede repetir las veces que quieras: crea su propio cajero, productos
+### y clienta con nombres únicos, así que no choca con tus datos.
+### Requisitos: Docker abierto y la API corriendo (npm run dev).
+### ==================================================================
+
+@base = http://localhost:3000/api
+
+
+### ------------------------------------------------------------------
+### PARTE 1 · PREPARACIÓN (el dueño)
+### ------------------------------------------------------------------
+
+### PASO 0 · La API está viva
+# ESPERADO: 200 · "db": "ok"
+GET {{base}}/health
+
+
+### PASO 1 · El dueño inicia sesión
+# ESPERADO: 200 · trae "accessToken" y "rol": "ADMIN"
+# @name admin
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "usuario": "admin", "password": "admin123" }
+
+###
+@tokenAdmin = {{admin.response.body.accessToken}}
+
+
+### PASO 2 · El dueño registra una cajera para hoy
+# ESPERADO: 201 · "rol": "CAJERO" · NO aparece la contraseña
+# @name cajera
+POST {{base}}/usuarios
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "nombre": "Cajera Demo", "usuario": "cajera{{$timestamp}}", "password": "caja123" }
+
+
+### PASO 3 · La cajera inicia sesión
+# ESPERADO: 200 · "rol": "CAJERO"
+# @name loginCajera
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "usuario": "{{cajera.response.body.usuario}}", "password": "caja123" }
+
+###
+@tokenCajera = {{loginCajera.response.body.accessToken}}
+
+
+### PASO 4 · Producto por unidad: galleta (costo S/ 0.70, venta S/ 1.00, 50 unidades)
+# ESPERADO: 201 · "stock": "50" · "stockBajo": false
+# @name galleta
+POST {{base}}/productos
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{
+  "codigoBarras": "77{{$timestamp}}",
+  "nombre": "Galleta Demo {{$timestamp}}",
+  "categoriaId": 5,
+  "precioCompra": 0.70,
+  "precioVenta": 1.00,
+  "stockInicial": 50,
+  "stockMinimo": 10
+}
+
+###
+@idGalleta = {{galleta.response.body.id}}
+
+
+### PASO 5 · Producto a granel: queso fresco (costo S/ 18, venta S/ 24 el kilo, 3 kg)
+# ESPERADO: 201 · "unidad": "KG" · "stock": "3"
+# @name queso
+POST {{base}}/productos
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{
+  "nombre": "Queso Demo {{$timestamp}}",
+  "categoriaId": 3,
+  "unidad": "KG",
+  "precioCompra": 18,
+  "precioVenta": 24,
+  "stockInicial": 3,
+  "stockMinimo": 1
+}
+
+###
+@idQueso = {{queso.response.body.id}}
+
+
+### PASO 6 · La cajera NO puede crear productos
+# ESPERADO: 403 · "No tienes permiso para esta acción"
+POST {{base}}/productos
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "nombre": "Intento cajera {{$timestamp}}", "categoriaId": 1, "precioCompra": 1, "precioVenta": 2 }
+
+
+### ------------------------------------------------------------------
+### PARTE 2 · ABRE LA BODEGA (la cajera)
+### ------------------------------------------------------------------
+
+### PASO 7 · La cajera intenta vender SIN abrir caja
+# ESPERADO: 400 · "No tienes la caja abierta..."
+POST {{base}}/ventas
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "items": [{ "productoId": {{idGalleta}}, "cantidad": 1 }], "metodoPago": "EFECTIVO" }
+
+
+### PASO 8 · Abre la caja con S/ 50 de sencillo
+# ESPERADO: 201 · "montoInicial": "50" · "estado": "ABIERTO"
+POST {{base}}/caja/abrir
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "montoInicial": 50 }
+
+
+### PASO 9 · Escanea el código de barras de la galleta
+# ESPERADO: 200 · el nombre "Galleta Demo..." · "precioVenta": "1"
+GET {{base}}/productos/codigo/{{galleta.response.body.codigoBarras}}
+Authorization: Bearer {{tokenCajera}}
+
+
+### ------------------------------------------------------------------
+### PARTE 3 · VENTAS
+### ------------------------------------------------------------------
+
+### PASO 10 · Venta en efectivo: 6 galletas + 1/4 kg de queso, paga con S/ 20
+# ESPERADO: 201
+#   subtotales: galletas 6 × 1.00 = "6" · queso 0.25 × 24.00 = "6"
+#   "total": "12" · "vuelto": "8"
+# @name venta1
+POST {{base}}/ventas
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{
+  "items": [
+    { "productoId": {{idGalleta}}, "cantidad": 6 },
+    { "productoId": {{idQueso}}, "cantidad": 0.25 }
+  ],
+  "metodoPago": "EFECTIVO",
+  "montoRecibido": 20
+}
+
+
+### PASO 11 · Venta por Yape: 2 galletas
+# ESPERADO: 201 · "total": "2" · "metodoPago": "YAPE"
+# @name ventaYape
+POST {{base}}/ventas
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "items": [{ "productoId": {{idGalleta}}, "cantidad": 2 }], "metodoPago": "YAPE" }
+
+
+### PASO 12 · Intenta vender más galletas de las que hay
+# ESPERADO: 400 · "Stock insuficiente de "Galleta Demo...": quedan 42 UND"
+POST {{base}}/ventas
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "items": [{ "productoId": {{idGalleta}}, "cantidad": 100 }], "metodoPago": "EFECTIVO" }
+
+
+### PASO 13 · Intenta vender media galleta (es por unidad)
+# ESPERADO: 400 · "...se vende por unidad: la cantidad debe ser entera"
+POST {{base}}/ventas
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "items": [{ "productoId": {{idGalleta}}, "cantidad": 0.5 }], "metodoPago": "EFECTIVO" }
+
+
+### ------------------------------------------------------------------
+### PARTE 4 · FIADO
+### ------------------------------------------------------------------
+
+### PASO 14 · El dueño registra a la vecina con S/ 10 de crédito
+# ESPERADO: 201 · "deuda": "0" · "creditoDisponible": "10"
+# @name vecina
+POST {{base}}/clientes
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "nombre": "Vecina Demo {{$timestamp}}", "telefono": "987654321", "limiteCredito": 10 }
+
+###
+@idVecina = {{vecina.response.body.id}}
+
+
+### PASO 15 · La cajera le fía 5 galletas
+# ESPERADO: 201 · "total": "5" · "metodoPago": "FIADO"
+POST {{base}}/ventas
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "items": [{ "productoId": {{idGalleta}}, "cantidad": 5 }], "metodoPago": "FIADO", "clienteId": {{idVecina}} }
+
+
+### PASO 16 · Quiere 8 galletas más al fiado (solo le quedan S/ 5 de crédito)
+# ESPERADO: 400 · "Crédito insuficiente ... debe S/ 5.00, límite S/ 10.00, disponible S/ 5.00"
+POST {{base}}/ventas
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "items": [{ "productoId": {{idGalleta}}, "cantidad": 8 }], "metodoPago": "FIADO", "clienteId": {{idVecina}} }
+
+
+### PASO 17 · La vecina paga S/ 3 a cuenta
+# ESPERADO: 201 · "deudaAnterior": "5" · "deudaRestante": "2"
+POST {{base}}/clientes/{{idVecina}}/pagos
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "monto": 3 }
+
+
+### PASO 18 · Estado de cuenta de la vecina (como su libreta)
+# ESPERADO: 200 · dos movimientos: FIADO (saldo "5") y PAGO (saldo "2")
+GET {{base}}/clientes/{{idVecina}}/estado-cuenta
+Authorization: Bearer {{tokenCajera}}
+
+
+### ------------------------------------------------------------------
+### PARTE 5 · ANULACIÓN
+### ------------------------------------------------------------------
+
+### PASO 19 · Se anula la venta por Yape (el cliente devolvió las galletas)
+# ESPERADO: 200 · "estado": "ANULADA"  (las 2 galletas vuelven al stock)
+POST {{base}}/ventas/{{ventaYape.response.body.id}}/anular
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "motivo": "Cliente devolvió el producto" }
+
+
+### PASO 20 · Intenta anularla otra vez
+# ESPERADO: 409 · "La venta ya estaba anulada"
+POST {{base}}/ventas/{{ventaYape.response.body.id}}/anular
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "motivo": "Otra vez" }
+
+
+### ------------------------------------------------------------------
+### PARTE 6 · INVENTARIO (el dueño)
+###   Galletas hasta aquí: 50 − 6 − 2 − 5 + 2 (anulación) = 39
+### ------------------------------------------------------------------
+
+### PASO 21 · Llegan 24 galletas y el costo sube a S/ 0.80
+# ESPERADO: 201 · "stockAnterior": "39" · "stockNuevo": "63"
+POST {{base}}/inventario/ingresos
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{
+  "nota": "Distribuidora Demo, boleta B001-123",
+  "items": [{ "productoId": {{idGalleta}}, "cantidad": 24, "precioCompra": 0.80 }]
+}
+
+
+### PASO 22 · Se rompen 2 paquetes
+# ESPERADO: 201 · "stockNuevo": "61"
+POST {{base}}/inventario/mermas
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "productoId": {{idGalleta}}, "cantidad": 2, "motivo": "Paquetes rotos" }
+
+
+### PASO 23 · Al contar el anaquel hay 60 (falta 1)
+# ESPERADO: 201 · "diferencia": "-1" · "resultado": "FALTANTE"
+POST {{base}}/inventario/ajustes
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "productoId": {{idGalleta}}, "stockReal": 60, "motivo": "Conteo de cierre" }
+
+
+### PASO 24 · Kardex de la galleta
+# ESPERADO: 200 · 8 movimientos en este orden, con su saldo:
+#   ENTRADA 50 → VENTA 44 → VENTA 42 → VENTA 37 → AJUSTE (anulación) 39
+#   → ENTRADA 63 → MERMA 61 → AJUSTE (conteo) 60
+#   "saldoFinal": "60" · "cuadra": true
+GET {{base}}/inventario/kardex/{{idGalleta}}
+Authorization: Bearer {{tokenCajera}}
+
+
+### ------------------------------------------------------------------
+### PARTE 7 · CIERRE DE CAJA
+### ------------------------------------------------------------------
+
+### PASO 25 · Resumen de la caja antes de cerrar
+# ESPERADO: 200
+#   EFECTIVO "12" · YAPE "0" (se anuló) · FIADO "5"
+#   "pagosFiadoRecibidos": "3" · "ventasAnuladas": 1
+#   "efectivoEsperado": "65"  (50 inicial + 12 efectivo + 3 pago de la vecina)
+GET {{base}}/caja/actual
+Authorization: Bearer {{tokenCajera}}
+
+
+### PASO 26 · Cierra la caja: contó S/ 64.50 en el cajón
+# ESPERADO: 200 · "diferencia": "-0.5"  (faltan 50 céntimos)
+POST {{base}}/caja/cerrar
+Authorization: Bearer {{tokenCajera}}
+Content-Type: application/json
+
+{ "montoContado": 64.50 }
+
+
+### ------------------------------------------------------------------
+### PARTE 8 · REPORTES (el dueño)
+### ------------------------------------------------------------------
+
+### PASO 27 · Ranking de hoy por ganancia: busca tus productos demo
+# ESPERADO: 200
+#   Galleta Demo: "ventas": 2 · "cantidad": "11" · "importe": "11" · "ganancia": "3.3"
+#     (costo congelado 0.70: el aumento a 0.80 del paso 21 NO afecta ventas pasadas)
+#   Queso Demo: "cantidad": "0.25" · "importe": "6" · "ganancia": "1.5"
+GET {{base}}/reportes/productos?orden=ganancia&limite=100
+Authorization: Bearer {{tokenAdmin}}
+
+
+### PASO 28 · Resumen del día (incluye también tus otras ventas de hoy)
+# ESPERADO: 200 · totales, margen, por método de pago y por hora
+GET {{base}}/reportes/resumen
+Authorization: Bearer {{tokenAdmin}}
+
+
+### PASO 29 · Inventario valorizado por categoría
+# ESPERADO: 200 · valor al costo y a precio de venta por categoría
+GET {{base}}/reportes/inventario
+Authorization: Bearer {{tokenAdmin}}
+
+
+### PASO 30 · La cajera NO puede ver reportes
+# ESPERADO: 403
+GET {{base}}/reportes/resumen
+Authorization: Bearer {{tokenCajera}}
+
+
+### ==================================================================
+### FIN · Si los 30 pasos coinciden, el backend funciona de punta a punta.
+### ==================================================================
