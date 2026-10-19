@@ -9,6 +9,7 @@ import {
   TipoMovimiento,
   UnidadMedida,
 } from '../generated/prisma/client';
+import { patronContiene } from '../common/busqueda';
 import { aDecimal } from '../common/decimal';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActualizarProductoDto } from './dto/actualizar-producto.dto';
@@ -34,12 +35,7 @@ export class ProductosService {
     const where: Prisma.ProductoWhereInput = {
       activo: filtro.incluirInactivos ? undefined : true,
       categoriaId: filtro.categoriaId,
-      OR: texto
-        ? [
-            { nombre: { contains: texto, mode: 'insensitive' } },
-            { codigoBarras: texto },
-          ]
-        : undefined,
+      id: texto ? { in: await this.idsQueCoinciden(texto) } : undefined,
     };
 
     const [total, productos] = await this.prisma.$transaction([
@@ -238,6 +234,18 @@ export class ProductosService {
         `El código ${codigo} ya pertenece a "${existe.nombre}"`,
       );
     }
+  }
+
+  /**
+   * Ids de productos cuyo nombre contiene el texto (sin importar mayúsculas
+   * ni tildes: "azucar" encuentra "Azúcar") o cuyo código de barras es exacto.
+   */
+  private async idsQueCoinciden(texto: string): Promise<number[]> {
+    const filas = await this.prisma.$queryRaw<{ id: number }[]>`
+      SELECT id FROM productos
+      WHERE unaccent(nombre) ILIKE unaccent(${patronContiene(texto)})
+         OR codigo_barras = ${texto}`;
+    return filas.map((f) => f.id);
   }
 
   /** Agrega el indicador stockBajo, útil para pintar alertas en el frontend */

@@ -139,6 +139,33 @@ describe('Catálogo: categorías y productos (e2e)', () => {
     expect(typeof body.datos[0].precioVenta).toBe('string');
   });
 
+  it('busca sin importar las tildes ("limon" encuentra "Limón")', async () => {
+    await comoAdmin(http().post('/api/productos'))
+      .send({
+        nombre: `Limón sutil ${sufijo}`,
+        categoriaId: idAbarrotes,
+        unidad: 'KG',
+        precioCompra: 5,
+        precioVenta: 7,
+      })
+      .expect(201);
+    const res = await comoCajero(
+      http()
+        .get('/api/productos')
+        .query({ buscar: `limon SUTIL ${sufijo}` }),
+    ).expect(200);
+    expect(
+      (res.body as { datos: Producto[] }).datos.map((p) => p.nombre),
+    ).toEqual([`Limón sutil ${sufijo}`]);
+  });
+
+  it('los signos % y _ se buscan como texto, no como comodines', async () => {
+    const res = await comoCajero(
+      http().get('/api/productos').query({ buscar: '%_%' }),
+    ).expect(200);
+    expect((res.body as { total: number }).total).toBe(0);
+  });
+
   it('el lector de la caja encuentra un producto por código de barras', async () => {
     const res = await comoCajero(
       http().get(`/api/productos/codigo/${codigoBase}`),

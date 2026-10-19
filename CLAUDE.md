@@ -72,12 +72,13 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Pagos de fiado (`PagoFiado`) se asumen en efectivo y suman al efectivo esperado del turno.
 - Fechas de filtros en formato `AAAA-MM-DD` interpretadas en hora de Lima (UTC-5): usar `inicioDelDia()` / `finDelDia()` de `src/common/fechas.ts`.
 - Cada archivo e2e crea y borra sus propios datos; no depender de los productos del seed.
+- Búsquedas por nombre (productos y clientes) ignoran mayúsculas y TILDES con la extensión `unaccent` (migración `busqueda_sin_tildes`): `unaccent(nombre) ILIKE unaccent(patronContiene(texto))` vía `$queryRaw`. `patronContiene()` de `src/common/busqueda.ts` escapa `%` y `_`.
 
 ## Hoja de ruta
 - [x] Fase 1: modelo de datos
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
 - [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ ~~inventario~~ ~~reportes~~ (hecho): **backend completo**
-- [ ] Fase 4: Frontend: ~~login~~ ~~abrir/cerrar caja~~ (hecho) · pantalla de venta con lector de código de barras · productos · clientes/fiado · reportes
+- [ ] Fase 4: Frontend: ~~login~~ ~~abrir/cerrar caja~~ ~~pantalla de venta con lector de código de barras~~ ~~historial y anulación de ventas~~ (hecho) · productos e inventario · clientes/fiado · reportes
 - [ ] Fase 5: Pruebas, Swagger, despliegue
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
 
@@ -99,9 +100,22 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Todas las peticiones pasan por `api()` de `src/lib/api.ts`: agrega el token y convierte los errores de NestJS en `ErrorApi` (`status` + `message` legible). Un 401 con sesión abierta cierra la sesión.
 - Datos del servidor con TanStack Query (`useQuery` / `useMutation`); después de modificar algo, `invalidateQueries` de la clave afectada (ej. `['caja']`).
 - Sesión en `src/sesion/`: `ProveedorSesion` guarda `{ token, usuario }` en localStorage (`bodega.sesion`, siempre con try/catch) y la valida con `/auth/perfil` al abrir. Usar el hook `useSesion()`.
-- Rutas: `/ingresar` pública; el resto va dentro de `<Marco>` (exige sesión, muestra la cabecera).
+- Rutas: `/ingresar` pública; el resto va dentro de `<Marco>` (exige sesión, muestra la cabecera con la navegación). `/` = Vender, `/ventas` = Ventas del turno, `/caja` = Mi caja.
 - `GET /caja/actual` responde 400 si no hay turno: en el frontend eso significa "caja cerrada", no un error.
 - Montos: la API los envía como texto; `soles()` de `src/lib/dinero.ts` solo los formatea. Los cálculos de dinero se hacen en el backend. Para leer lo que escribe el usuario: `leerMonto()` (acepta coma o punto, máx. 2 decimales).
 - Diseño: colores en `@theme` de `src/index.css` (`tinta`, `pared`, `papel`, `linea`, `cartulina`, `verde`, `rojo`). El amarillo `cartulina` (componente `Etiqueta`, forma de cartel de precio) se usa SOLO para montos de dinero importantes. Cifras grandes con la utilidad `cifra`. Componentes base en `src/componentes/ui.tsx` (`Boton`, `Campo`, `Aviso`, `Etiqueta`).
 - Textos de la interfaz en español claro, desde el punto de vista del cajero ("Abrir caja", "Efectivo que debe haber en el cajón").
+
+## Pantalla de venta (cómo está implementada)
+- `src/paginas/Vender.tsx` arma la pantalla; las piezas están en `src/venta/`: `carrito.ts` (useReducer), `Buscador.tsx`, `TablaCarrito.tsx`, `Cobro.tsx`.
+- Buscador: Enter con solo dígitos (4+) = código de barras → `GET /productos/codigo/:codigo`; el campo se vacía ANTES de la petición (el lector puede estar escribiendo el siguiente código). Con texto = sugerencias de `GET /productos?buscar=` (espera 250 ms; solo se muestran si corresponden al texto actual). Multiplicador `6*código` o `6*nombre`.
+- Carrito: la cantidad se guarda como texto tal como la escribe el cajero y se valida con `leerCantidad()` (UND enteros, KG/LT hasta 3 decimales). Agregar un producto que ya está suma a su línea (el backend rechaza productos repetidos). A granel se agrega sin cantidad y el foco pasa al campo de peso.
+- Total en pantalla calculado en CÉNTIMOS enteros (`subtotalCentimos`, mismo redondeo que el backend); el total oficial es el que devuelve `POST /ventas`.
+- Cobro: F2 cobra; efectivo con "Paga con" opcional y botones de billetes → vuelto en vivo; FIADO exige elegir cliente y bloquea si el total supera `creditoDisponible`. Tras cobrar se invalidan `['caja']`, `['productos']`, `['clientes']` y `['ventas']` y se muestra el vuelto que calculó el backend.
+
+## Ventas del turno (cómo está implementado)
+- `src/paginas/Ventas.tsx`: lista `GET /ventas?turnoId=<turno abierto>&limite=200` (clave `['ventas','turno',id]`) y detalle `GET /ventas/:id` en un panel al lado (debajo en pantallas angostas, con scroll automático).
+- El resumen (cantidad y total) se calcula de la MISMA lista, en céntimos, para que nunca se contradigan mientras se refrescan las consultas.
+- Anular: motivo obligatorio (botones con motivos frecuentes o texto libre, máx. 200) → `POST /ventas/:id/anular`. Luego se invalidan `['ventas']`, `['caja']`, `['productos']` y `['clientes']`. Una venta ANULADA se muestra tachada y ya no ofrece anular.
+- El motivo queda en los movimientos de inventario (`AJUSTE`, "Anulación de venta #N: motivo"), no en la tabla `ventas`.
 

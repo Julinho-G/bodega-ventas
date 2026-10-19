@@ -14,6 +14,7 @@ import {
 import type { UsuarioAutenticado } from '../auth/auth.types';
 import { CajaService } from '../caja/caja.service';
 import { aDecimal } from '../common/decimal';
+import { patronContiene } from '../common/busqueda';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarClienteDto,
@@ -44,15 +45,15 @@ export class ClientesService {
   /** Lista clientes con su deuda y crédito disponible */
   async listar(filtro: FiltroClientesDto) {
     const texto = filtro.buscar?.trim();
+    // Nombre sin importar mayúsculas ni tildes ("nunez" encuentra "Núñez"), o DNI exacto
+    const coinciden = texto
+      ? await this.prisma.$queryRaw<{ id: number }[]>`
+          SELECT id FROM clientes
+          WHERE unaccent(nombre) ILIKE unaccent(${patronContiene(texto)})
+             OR dni = ${texto}`
+      : null;
     const clientes = await this.prisma.cliente.findMany({
-      where: texto
-        ? {
-            OR: [
-              { nombre: { contains: texto, mode: 'insensitive' } },
-              { dni: texto },
-            ],
-          }
-        : undefined,
+      where: coinciden ? { id: { in: coinciden.map((c) => c.id) } } : undefined,
       orderBy: { nombre: 'asc' },
     });
 

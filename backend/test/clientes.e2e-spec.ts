@@ -168,6 +168,13 @@ describe('Clientes y fiado (e2e)', () => {
     expect((res.body as Cliente[]).map((c) => c.id)).toEqual([idRosa]);
   });
 
+  it('busca clientes por nombre sin importar tildes ni mayúsculas', async () => {
+    const res = await con(tokenCajero, http().get('/api/clientes'))
+      .query({ buscar: `SENORA rosa ${sufijo}` })
+      .expect(200);
+    expect((res.body as Cliente[]).map((c) => c.id)).toEqual([idRosa]);
+  });
+
   // ---------------- Fiado ----------------
 
   it('fía S/ 10 y la deuda se actualiza', async () => {

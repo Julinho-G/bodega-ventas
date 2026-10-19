@@ -80,7 +80,8 @@ bodega-ventas/
 │       ├── lib/api.ts     cliente de la API (token y errores)
 │       ├── sesion/        ingreso y cierre de sesión
 │       ├── componentes/   botones, campos, cabecera
-│       └── paginas/       Ingreso, Caja
+│       ├── venta/         buscador, carrito y cobro de la pantalla de venta
+│       └── paginas/       Ingreso, Vender, Caja
 └── backend/
     ├── prisma/
     │   ├── schema.prisma  modelo de datos

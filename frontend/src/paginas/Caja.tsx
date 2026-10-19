@@ -6,41 +6,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Aviso, Boton, Campo, Etiqueta } from '../componentes/ui';
-import { api, ErrorApi } from '../lib/api';
+import { api } from '../lib/api';
+import { CLAVE_CAJA, obtenerCaja, type CajaActual } from '../lib/caja';
+import { hora, NOMBRE_METODO } from '../lib/textos';
 import { leerMonto, soles } from '../lib/dinero';
-import type { CierreTurno, MetodoPago, ResumenTurno, Turno } from '../tipos';
-
-type CajaActual = { turno: Turno; resumen: ResumenTurno };
-
-const NOMBRE_METODO: Record<MetodoPago, string> = {
-  EFECTIVO: 'Efectivo',
-  YAPE: 'Yape',
-  PLIN: 'Plin',
-  TARJETA: 'Tarjeta',
-  FIADO: 'Fiado',
-};
-
-const hora = (fecha: string) =>
-  new Date(fecha).toLocaleTimeString('es-PE', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'America/Lima',
-  });
-
-/** El backend responde 400 cuando el usuario no tiene caja abierta: eso es "caja cerrada", no un error */
-async function obtenerCaja(): Promise<CajaActual | null> {
-  try {
-    return await api<CajaActual>('/caja/actual');
-  } catch (error) {
-    if (error instanceof ErrorApi && error.status === 400) return null;
-    throw error;
-  }
-}
+import type { CierreTurno, Turno } from '../tipos';
 
 export default function Caja() {
   const [cierre, setCierre] = useState<CierreTurno | null>(null);
   const caja = useQuery({
-    queryKey: ['caja', 'actual'],
+    queryKey: CLAVE_CAJA,
     queryFn: obtenerCaja,
     refetchInterval: 30_000, // el resumen se actualiza solo cada 30 segundos
   });
