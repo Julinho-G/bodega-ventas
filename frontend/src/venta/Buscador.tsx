@@ -5,10 +5,11 @@
  *  - Multiplicador: "6*7750243001234" agrega 6 unidades de una vez.
  */
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState, type KeyboardEvent, type RefObject } from 'react';
+import { useState, type KeyboardEvent, type RefObject } from 'react';
 import { api, ErrorApi } from '../lib/api';
 import { leerCantidad, soles } from '../lib/dinero';
 import { NOMBRE_UNIDAD } from '../lib/textos';
+import { useRetrasado } from '../lib/useRetrasado';
 import type { Pagina, Producto } from '../tipos';
 
 type Props = {
@@ -22,16 +23,6 @@ function separar(texto: string) {
   return partes
     ? { cantidad: partes[1], busqueda: partes[2].trim() }
     : { cantidad: null, busqueda: texto.trim() };
-}
-
-/** Espera a que el cajero deje de escribir antes de buscar (no una petición por tecla) */
-function useRetrasado(valor: string, ms: number) {
-  const [retrasado, setRetrasado] = useState(valor);
-  useEffect(() => {
-    const t = setTimeout(() => setRetrasado(valor), ms);
-    return () => clearTimeout(t);
-  }, [valor, ms]);
-  return retrasado;
 }
 
 const sinStock = (p: Producto) => Number(p.stock) <= 0;

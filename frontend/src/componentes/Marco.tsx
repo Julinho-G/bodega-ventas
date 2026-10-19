@@ -17,16 +17,21 @@ export default function Marco() {
   return (
     <div className="min-h-dvh">
       <header className="border-b border-linea bg-papel">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-6">
-            <p className="cifra hidden text-2xl sm:block">{NOMBRE_BODEGA}</p>
-            <nav aria-label="Secciones" className="flex gap-1">
-              <Enlace a="/">Vender</Enlace>
-              <Enlace a="/ventas">Ventas</Enlace>
-              <Enlace a="/caja">Mi caja</Enlace>
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
+        {/* En pantallas angostas: nombre y "Salir" arriba, las secciones en una segunda fila */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+          <p className="cifra text-2xl">{NOMBRE_BODEGA}</p>
+          <nav
+            aria-label="Secciones"
+            className="order-last -mx-1 flex w-full gap-1 overflow-x-auto px-1 md:order-none md:w-auto"
+          >
+            <Enlace a="/">Vender</Enlace>
+            <Enlace a="/ventas">Ventas</Enlace>
+            <Enlace a="/caja">Mi caja</Enlace>
+            {usuario.rol === 'ADMIN' && (
+              <Enlace a="/productos">Productos</Enlace>
+            )}
+          </nav>
+          <div className="ml-auto flex items-center gap-4">
             <div className="hidden text-right leading-tight sm:block">
               <p className="font-semibold">{usuario.nombre}</p>
               <p className="text-sm text-tinta-suave">
@@ -57,7 +62,7 @@ function Enlace({ a, children }: { a: string; children: string }) {
       to={a}
       end
       className={({ isActive }) =>
-        `rounded-lg px-3 py-2 font-semibold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-tinta ${
+        `rounded-lg px-3 py-2 font-semibold whitespace-nowrap focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-tinta ${
           isActive ? 'bg-tinta text-white' : 'hover:bg-pared'
         }`
       }

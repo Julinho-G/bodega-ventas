@@ -44,6 +44,8 @@ export type Producto = {
   codigoBarras: string | null;
   nombre: string;
   unidad: Unidad;
+  categoriaId: number;
+  precioCompra: string;
   precioVenta: string;
   stock: string;
   stockMinimo: string;
@@ -96,4 +98,30 @@ export type VentaResumen = {
   cliente: { id: number; nombre: string } | null;
   usuario: { id: number; nombre: string };
   _count: { detalles: number };
+};
+
+export type Categoria = {
+  id: number;
+  nombre: string;
+  cantidadProductos: number;
+};
+
+export type TipoMovimiento = 'ENTRADA' | 'VENTA' | 'AJUSTE' | 'MERMA';
+
+export type Kardex = {
+  producto: { id: number; nombre: string; unidad: Unidad; stockActual: string };
+  saldoInicial: string;
+  movimientos: {
+    id: number;
+    fecha: string;
+    tipo: TipoMovimiento;
+    motivo: string | null;
+    ventaId: number | null;
+    usuario: { id: number; nombre: string };
+    entrada: string;
+    salida: string;
+    saldo: string;
+  }[];
+  saldoFinal: string;
+  cuadra: boolean;
 };

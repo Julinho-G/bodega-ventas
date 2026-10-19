@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import Marco from './componentes/Marco';
 import Caja from './paginas/Caja';
 import Ingreso from './paginas/Ingreso';
+import Productos from './paginas/Productos';
 import Vender from './paginas/Vender';
 import Ventas from './paginas/Ventas';
 
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/" element={<Vender />} />
         <Route path="/ventas" element={<Ventas />} />
         <Route path="/caja" element={<Caja />} />
+        <Route path="/productos" element={<Productos />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

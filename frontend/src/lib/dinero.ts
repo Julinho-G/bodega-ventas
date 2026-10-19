@@ -53,3 +53,16 @@ export function leerCantidad(
   const valor = Number(limpio);
   return valor > 0 ? valor : null;
 }
+
+/**
+ * Como leerCantidad, pero acepta 0 (stock inicial, stock mínimo, conteo físico).
+ * Devuelve null si no es válido.
+ */
+export function leerCantidadOCero(
+  texto: string,
+  unidad: 'UND' | 'KG' | 'LT',
+): number | null {
+  const limpio = texto.trim().replace(',', '.');
+  if (/^0+(\.0{1,3})?$/.test(limpio)) return 0;
+  return leerCantidad(limpio, unidad);
+}

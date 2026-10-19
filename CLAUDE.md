@@ -78,7 +78,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - [x] Fase 1: modelo de datos
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
 - [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ ~~inventario~~ ~~reportes~~ (hecho): **backend completo**
-- [ ] Fase 4: Frontend: ~~login~~ ~~abrir/cerrar caja~~ ~~pantalla de venta con lector de código de barras~~ ~~historial y anulación de ventas~~ (hecho) · productos e inventario · clientes/fiado · reportes
+- [ ] Fase 4: Frontend: ~~login~~ ~~abrir/cerrar caja~~ ~~pantalla de venta con lector de código de barras~~ ~~historial y anulación de ventas~~ ~~productos e inventario~~ (hecho) · clientes/fiado · reportes
 - [ ] Fase 5: Pruebas, Swagger, despliegue
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
 
@@ -100,9 +100,11 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Todas las peticiones pasan por `api()` de `src/lib/api.ts`: agrega el token y convierte los errores de NestJS en `ErrorApi` (`status` + `message` legible). Un 401 con sesión abierta cierra la sesión.
 - Datos del servidor con TanStack Query (`useQuery` / `useMutation`); después de modificar algo, `invalidateQueries` de la clave afectada (ej. `['caja']`).
 - Sesión en `src/sesion/`: `ProveedorSesion` guarda `{ token, usuario }` en localStorage (`bodega.sesion`, siempre con try/catch) y la valida con `/auth/perfil` al abrir. Usar el hook `useSesion()`.
-- Rutas: `/ingresar` pública; el resto va dentro de `<Marco>` (exige sesión, muestra la cabecera con la navegación). `/` = Vender, `/ventas` = Ventas del turno, `/caja` = Mi caja.
+- Rutas: `/ingresar` pública; el resto va dentro de `<Marco>` (exige sesión, muestra la cabecera con la navegación). `/` = Vender, `/ventas` = Ventas del turno, `/caja` = Mi caja, `/productos` = Productos (solo ADMIN: el enlace no se muestra al cajero y la página muestra un aviso).
 - `GET /caja/actual` responde 400 si no hay turno: en el frontend eso significa "caja cerrada", no un error.
-- Montos: la API los envía como texto; `soles()` de `src/lib/dinero.ts` solo los formatea. Los cálculos de dinero se hacen en el backend. Para leer lo que escribe el usuario: `leerMonto()` (acepta coma o punto, máx. 2 decimales).
+- Montos: la API los envía como texto; `soles()` de `src/lib/dinero.ts` solo los formatea. Los cálculos de dinero se hacen en el backend. Para leer lo que escribe el usuario: `leerMonto()` (acepta coma o punto, máx. 2 decimales), `leerCantidad()` (> 0) y `leerCantidadOCero()` (≥ 0, para stock inicial/mínimo y conteos).
+- Búsquedas mientras se escribe: `useRetrasado()` de `src/lib/useRetrasado.ts` (250 ms).
+- Formularios: `onChange` en el `<form>` borra el aviso de error en cuanto el usuario corrige algo.
 - Diseño: colores en `@theme` de `src/index.css` (`tinta`, `pared`, `papel`, `linea`, `cartulina`, `verde`, `rojo`). El amarillo `cartulina` (componente `Etiqueta`, forma de cartel de precio) se usa SOLO para montos de dinero importantes. Cifras grandes con la utilidad `cifra`. Componentes base en `src/componentes/ui.tsx` (`Boton`, `Campo`, `Aviso`, `Etiqueta`).
 - Textos de la interfaz en español claro, desde el punto de vista del cajero ("Abrir caja", "Efectivo que debe haber en el cajón").
 
@@ -118,4 +120,11 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - El resumen (cantidad y total) se calcula de la MISMA lista, en céntimos, para que nunca se contradigan mientras se refrescan las consultas.
 - Anular: motivo obligatorio (botones con motivos frecuentes o texto libre, máx. 200) → `POST /ventas/:id/anular`. Luego se invalidan `['ventas']`, `['caja']`, `['productos']` y `['clientes']`. Una venta ANULADA se muestra tachada y ya no ofrece anular.
 - El motivo queda en los movimientos de inventario (`AJUSTE`, "Anulación de venta #N: motivo"), no en la tabla `ventas`.
+
+## Productos e inventario (cómo está implementado)
+- `src/paginas/Productos.tsx`: lista paginada (30 por página) con búsqueda y filtros "En venta" / "Stock bajo" (`GET /productos/stock-bajo`, filtrado sin tildes en el cliente) / "Todos, con descontinuados" (`incluirInactivos=true`). A la derecha, la ficha del producto o el formulario de uno nuevo.
+- `src/productos/FormProducto.tsx`: crear (`POST /productos`, con stock inicial) y editar (`PATCH`, incluye `activo` y `codigoBarras: null` para quitarlo). El stock NO se edita: solo cambia con movimientos. Muestra la ganancia por unidad como referencia.
+- `src/productos/MovimientosStock.tsx`: "Llegó mercadería" (`POST /inventario/ingresos`, costo y precio nuevos opcionales), "Merma" (`/inventario/mermas`, motivo obligatorio) y "Conteo" (`/inventario/ajustes` con `stockReal`; si es igual al stock no se envía).
+- `src/productos/Kardex.tsx`: `GET /inventario/kardex/:id` (clave `['kardex', id]`), lo más reciente primero, 15 filas con opción "ver todos", y el indicador `cuadra`.
+- Tras cada cambio se invalidan `['productos']` (lista y ficha) y `['kardex', id]`.
 
