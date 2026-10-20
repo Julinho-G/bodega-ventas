@@ -12,6 +12,7 @@ import {
   Min,
 } from 'class-validator';
 import { UnidadMedida } from '../../generated/prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -51,6 +52,8 @@ export class CrearProductoDto {
     { message: 'precioVenta debe ser un número con máximo 2 decimales' },
   )
   @IsPositive({ message: 'precioVenta debe ser mayor que 0' })
+  // IsPositive se documentaría como «mínimo 1»; se aclara que basta con ser mayor que 0 (ej. 0.25 kg)
+  @ApiProperty({ minimum: 0, exclusiveMinimum: true })
   precioVenta!: number;
 
   // Cantidades con hasta 3 decimales (ej. 0.250 kg)

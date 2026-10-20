@@ -51,6 +51,8 @@ Abre http://localhost:5173 e ingresa con `admin` / `admin123`.
 
 Para ver las tablas y datos: `npm run db:studio`.
 
+**Documentación de la API:** con la API encendida, abre http://localhost:3000/api/docs. Ahí están todas las rutas agrupadas por sección, con sus datos de entrada y quién puede usarlas. Para probarlas: ejecuta el login con **Try it out**, copia el `accessToken`, pulsa **Authorize** y pégalo. El JSON (`/api/docs-json`) se puede importar en Postman o Insomnia.
+
 ## Atajos desde la carpeta raíz
 
 Desde `D:\bodega-ventas` (sin entrar a `backend`) también funcionan:
@@ -68,6 +70,7 @@ Desde `D:\bodega-ventas` (sin entrar a `backend`) también funcionan:
 - **Puerto ocupado** → el proyecto usa el 5440 para no chocar con PostgreSQL instalados en Windows. Si también estuviera ocupado, cambia el primer número en `docker-compose.yml` y el puerto en `.env`.
 - **El frontend dice "No hay conexión con el sistema"** → la API no está encendida: `npm run dev` en otra terminal.
 - **`Port 5173 is already in use`** → ya tienes el frontend abierto en otra terminal.
+- **`EADDRINUSE: address already in use :::3000`** → la API ya está encendida en otra terminal. Usa esa, o ciérrala: `netstat -ano | findstr :3000` y luego `taskkill /PID <número> /F`.
 - **Cambié `schema.prisma`** → ejecuta `npm run db:migrate` (crea la migración y regenera el cliente).
 
 ## Estructura
@@ -92,6 +95,7 @@ bodega-ventas/
     ├── prisma.config.ts
     └── src/
         ├── main.ts        arranque (prefijo /api, validación, CORS)
+        ├── configurar-documentacion.ts   Swagger en /api/docs
         ├── app.module.ts
         ├── prisma/        PrismaService global
         └── health/        GET /api/health

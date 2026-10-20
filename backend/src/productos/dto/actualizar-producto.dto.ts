@@ -14,6 +14,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { UnidadMedida } from '../../generated/prisma/client';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -56,6 +57,8 @@ export class ActualizarProductoDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive({ message: 'precioVenta debe ser mayor que 0' })
+  // IsPositive se documentaría como «mínimo 1»; se aclara que basta con ser mayor que 0 (ej. 0.25 kg)
+  @ApiPropertyOptional({ minimum: 0, exclusiveMinimum: true })
   precioVenta?: number;
 
   @IsOptional()

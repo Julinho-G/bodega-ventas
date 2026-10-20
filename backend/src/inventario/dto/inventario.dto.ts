@@ -17,6 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { TipoMovimiento } from '../../generated/prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -30,6 +31,8 @@ export class ItemIngresoDto {
 
   @IsNumber({ maxDecimalPlaces: 3 })
   @IsPositive({ message: 'La cantidad debe ser mayor que 0' })
+  // IsPositive se documentaría como «mínimo 1»; se aclara que basta con ser mayor que 0 (ej. 0.25 kg)
+  @ApiProperty({ minimum: 0, exclusiveMinimum: true })
   cantidad!: number;
 
   /** Nuevo costo unitario según la factura del proveedor (opcional) */
@@ -42,6 +45,8 @@ export class ItemIngresoDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
+  // IsPositive se documentaría como «mínimo 1»; se aclara que basta con ser mayor que 0 (ej. 0.25 kg)
+  @ApiPropertyOptional({ minimum: 0, exclusiveMinimum: true })
   precioVenta?: number;
 }
 
@@ -69,6 +74,8 @@ export class RegistrarMermaDto {
 
   @IsNumber({ maxDecimalPlaces: 3 })
   @IsPositive({ message: 'La cantidad debe ser mayor que 0' })
+  // IsPositive se documentaría como «mínimo 1»; se aclara que basta con ser mayor que 0 (ej. 0.25 kg)
+  @ApiProperty({ minimum: 0, exclusiveMinimum: true })
   cantidad!: number;
 
   /** Ej.: "Vencido", "Botella rota", "Roedores" */

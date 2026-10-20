@@ -12,6 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { MetodoPago } from '../../generated/prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class ItemVentaDto {
   @IsInt()
@@ -20,6 +21,8 @@ export class ItemVentaDto {
   /** Unidades (UND) o kilos/litros con hasta 3 decimales (KG, LT) */
   @IsNumber({ maxDecimalPlaces: 3 })
   @IsPositive({ message: 'La cantidad debe ser mayor que 0' })
+  // IsPositive se documentaría como «mínimo 1»; se aclara que basta con ser mayor que 0 (ej. 0.25 kg)
+  @ApiProperty({ minimum: 0, exclusiveMinimum: true })
   cantidad!: number;
 }
 

@@ -15,6 +15,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 
 ## Comandos (desde `backend/`)
 - `npm run start:dev` – API en http://localhost:3000/api (salud: `/api/health`)
+- Documentación Swagger: http://localhost:3000/api/docs (JSON en `/api/docs-json`); se apaga con `API_DOCS=false`
 - `npm run db:migrate` – crear/aplicar migraciones tras cambiar `prisma/schema.prisma`
 - `npx prisma db seed` – datos iniciales (usuario admin / admin123)
 - `npm run db:studio` – ver la base de datos en el navegador
@@ -79,8 +80,16 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
 - [x] Fase 3: Backend: auth JWT y usuarios, categorías y productos, caja (turnos), ventas (transacción), clientes y fiado, inventario, reportes: **backend completo**
 - [x] Fase 4: Frontend: login, abrir/cerrar caja, pantalla de venta con lector de código de barras, historial y anulación, productos e inventario, clientes y fiado, reportes: **frontend completo**
-- [ ] Fase 5: Pruebas, Swagger, despliegue
+- [ ] Fase 5: Pruebas, Swagger, despliegue (hecho: Swagger)
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
+
+## Documentación Swagger (cómo está implementada)
+- `src/configurar-documentacion.ts` arma el documento (título, guía de uso, `addBearerAuth`) y lo publica en `/api/docs`. Lo llaman `main.ts` y `test/documentacion.e2e-spec.ts`.
+- El plugin de `@nestjs/swagger` (en `nest-cli.json`) lee los DTOs: tipos, opcionales, reglas de `class-validator` y los comentarios `/** */` como descripción. Por eso los DTOs deben terminar en `.dto.ts`.
+- En los controladores el plugin está APAGADO a propósito (`controllerFileNameSuffix` con un sufijo que no existe): las respuestas son tipos de Prisma que el plugin no describe bien. Cada controlador lleva a mano `@ApiTags('Sección')`, `@ApiBearerAuth()` (salvo health; en auth solo `perfil`) y `@ApiOperation({ summary })` por ruta, con "· solo ADMIN" cuando corresponde.
+- `@Roles()` agrega solo la respuesta 403 en la documentación.
+- `@IsPositive()` se documentaría como "mínimo 1": esos campos llevan `@ApiProperty({ minimum: 0, exclusiveMinimum: true })` (o `ApiPropertyOptional` si son opcionales).
+- Al agregar una ruta nueva: ponerle `@ApiOperation` y revisar que aparezca en `/api/docs`.
 
 ## Inventario (cómo está implementado)
 - Ingresos, mermas y ajustes: solo ADMIN. Kardex: cualquier usuario. Listado de movimientos: ADMIN.
