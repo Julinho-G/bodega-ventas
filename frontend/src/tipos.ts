@@ -65,6 +65,7 @@ export type Cliente = {
   id: number;
   nombre: string;
   dni: string | null;
+  telefono: string | null;
   limiteCredito: string;
   deuda: string;
   creditoDisponible: string;
@@ -124,4 +125,17 @@ export type Kardex = {
   }[];
   saldoFinal: string;
   cuadra: boolean;
+};
+
+export type EstadoCuenta = {
+  cliente: Cliente;
+  movimientos: {
+    tipo: 'FIADO' | 'PAGO';
+    fecha: string;
+    ventaId: number | null;
+    detalle: string;
+    cargo: string;
+    abono: string;
+    saldo: string;
+  }[];
 };

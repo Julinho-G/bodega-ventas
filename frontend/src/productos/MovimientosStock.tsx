@@ -50,9 +50,12 @@ export default function MovimientosStock({
         resultado?: string;
         diferencia?: string;
       }>(peticion.ruta, { metodo: 'POST', cuerpo: peticion.cuerpo }),
-    onSuccess: (r) => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
-      queryClient.invalidateQueries({ queryKey: ['kardex', producto.id] });
+    onSuccess: async (r) => {
+      // Se espera la recarga antes de avisar: la ficha y el aviso nunca se contradicen
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['productos'] }),
+        queryClient.invalidateQueries({ queryKey: ['kardex', producto.id] }),
+      ]);
       const nuevo = cantidad(r.stockNuevo ?? r.productos?.[0]?.stockNuevo ?? 0);
       alTerminar(
         accion === 'ingreso'

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router';
 import Marco from './componentes/Marco';
 import Caja from './paginas/Caja';
+import Clientes from './paginas/Clientes';
 import Ingreso from './paginas/Ingreso';
 import Productos from './paginas/Productos';
 import Vender from './paginas/Vender';
@@ -14,6 +15,7 @@ export default function App() {
       <Route element={<Marco />}>
         <Route path="/" element={<Vender />} />
         <Route path="/ventas" element={<Ventas />} />
+        <Route path="/clientes" element={<Clientes />} />
         <Route path="/caja" element={<Caja />} />
         <Route path="/productos" element={<Productos />} />
       </Route>

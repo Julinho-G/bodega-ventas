@@ -75,9 +75,10 @@ export default function FormProducto({
             cuerpo,
           })
         : api<Producto>('/productos', { metodo: 'POST', cuerpo }),
-    onSuccess: (guardado) => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
+    onSuccess: async (guardado) => {
+      // Se espera la recarga antes de avisar: la ficha y el aviso nunca se contradicen
       queryClient.invalidateQueries({ queryKey: ['categorias'] });
+      await queryClient.invalidateQueries({ queryKey: ['productos'] });
       alGuardar(guardado);
     },
     onError: (e) => setError(e.message),

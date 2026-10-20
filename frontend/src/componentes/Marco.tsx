@@ -26,6 +26,7 @@ export default function Marco() {
           >
             <Enlace a="/">Vender</Enlace>
             <Enlace a="/ventas">Ventas</Enlace>
+            <Enlace a="/clientes">Clientes</Enlace>
             <Enlace a="/caja">Mi caja</Enlace>
             {usuario.rol === 'ADMIN' && (
               <Enlace a="/productos">Productos</Enlace>
