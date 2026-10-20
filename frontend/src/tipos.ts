@@ -139,3 +139,57 @@ export type EstadoCuenta = {
     saldo: string;
   }[];
 };
+
+/** GET /reportes/resumen */
+export type ResumenReporte = {
+  periodo: { desde: string; hasta: string };
+  cantidadVentas: number;
+  totalVendido: string;
+  costoDeVentas: string;
+  gananciaBruta: string;
+  margenPorcentaje: string;
+  ticketPromedio: string;
+  anuladas: { cantidad: number; monto: string };
+  porMetodoPago: { metodo: MetodoPago; ventas: number; total: string }[];
+  porDia: { dia: string; ventas: number; total: string; ganancia: string }[];
+  porHora: { hora: number; ventas: number; total: string }[];
+};
+
+/** GET /reportes/productos */
+export type RankingProductos = {
+  periodo: { desde: string; hasta: string };
+  orden: 'cantidad' | 'importe' | 'ganancia';
+  productos: {
+    puesto: number;
+    id: number;
+    nombre: string;
+    unidad: Unidad;
+    categoria: string;
+    ventas: number;
+    cantidad: string;
+    importe: string;
+    ganancia: string;
+  }[];
+};
+
+/** GET /reportes/inventario */
+export type InventarioValorizado = {
+  fecha: string;
+  categorias: {
+    categoria: string;
+    productos: number;
+    stockBajo: number;
+    sinStock: number;
+    valorCosto: string;
+    valorVenta: string;
+    gananciaPotencial: string;
+  }[];
+  totales: {
+    productos: number;
+    stockBajo: number;
+    sinStock: number;
+    valorCosto: string;
+    valorVenta: string;
+    gananciaPotencial: string;
+  };
+};

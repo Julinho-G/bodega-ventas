@@ -10,7 +10,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - **Backend:** NestJS 11 + TypeScript (carpeta `backend/`)
 - **ORM:** Prisma 7 con `@prisma/adapter-pg`. Cliente generado en `backend/src/generated/prisma` (no editar, no versionar).
 - **Base de datos:** PostgreSQL 17 en Docker (`docker-compose.yml`), expuesto en el puerto **5440** (5432/5433 los ocupan PostgreSQL locales de Windows)
-- **Frontend (en curso):** React 19 + Vite + TypeScript + Tailwind CSS 4 + TanStack Query + React Router (carpeta `frontend/`)
+- **Frontend (hecho):** React 19 + Vite + TypeScript + Tailwind CSS 4 + TanStack Query + React Router (carpeta `frontend/`)
 - **Auth (hecho):** JWT (`@nestjs/jwt`) con roles `ADMIN` y `CAJERO`; contraseñas con `bcryptjs`
 
 ## Comandos (desde `backend/`)
@@ -77,8 +77,8 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 ## Hoja de ruta
 - [x] Fase 1: modelo de datos
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
-- [ ] Fase 3: ~~Auth JWT + usuarios~~ ~~categorías/productos~~ ~~caja (turnos)~~ ~~ventas (transacción)~~ ~~clientes y fiado~~ ~~inventario~~ ~~reportes~~ (hecho): **backend completo**
-- [ ] Fase 4: Frontend: ~~login~~ ~~abrir/cerrar caja~~ ~~pantalla de venta con lector de código de barras~~ ~~historial y anulación de ventas~~ ~~productos e inventario~~ ~~clientes y fiado~~ (hecho) · reportes
+- [x] Fase 3: Backend: auth JWT y usuarios, categorías y productos, caja (turnos), ventas (transacción), clientes y fiado, inventario, reportes: **backend completo**
+- [x] Fase 4: Frontend: login, abrir/cerrar caja, pantalla de venta con lector de código de barras, historial y anulación, productos e inventario, clientes y fiado, reportes: **frontend completo**
 - [ ] Fase 5: Pruebas, Swagger, despliegue
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
 
@@ -100,13 +100,13 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Todas las peticiones pasan por `api()` de `src/lib/api.ts`: agrega el token y convierte los errores de NestJS en `ErrorApi` (`status` + `message` legible). Un 401 con sesión abierta cierra la sesión.
 - Datos del servidor con TanStack Query (`useQuery` / `useMutation`); después de modificar algo, `invalidateQueries` de la clave afectada (ej. `['caja']`).
 - Sesión en `src/sesion/`: `ProveedorSesion` guarda `{ token, usuario }` en localStorage (`bodega.sesion`, siempre con try/catch) y la valida con `/auth/perfil` al abrir. Usar el hook `useSesion()`.
-- Rutas: `/ingresar` pública; el resto va dentro de `<Marco>` (exige sesión, muestra la cabecera con la navegación). `/` = Vender, `/ventas` = Ventas del turno, `/clientes` = Clientes, `/caja` = Mi caja, `/productos` = Productos (solo ADMIN: el enlace no se muestra al cajero y la página muestra un aviso).
+- Rutas: `/ingresar` pública; el resto va dentro de `<Marco>` (exige sesión, muestra la cabecera con la navegación). `/` = Vender, `/ventas` = Ventas del turno, `/clientes` = Clientes, `/caja` = Mi caja, `/productos` = Productos y `/reportes` = Reportes (solo ADMIN: el enlace no se muestra al cajero y la página muestra un aviso).
 - `GET /caja/actual` responde 400 si no hay turno: en el frontend eso significa "caja cerrada", no un error.
 - Montos: la API los envía como texto; `soles()` de `src/lib/dinero.ts` solo los formatea. Los cálculos de dinero se hacen en el backend. Para leer lo que escribe el usuario: `leerMonto()` (acepta coma o punto, máx. 2 decimales), `leerCantidad()` (> 0) y `leerCantidadOCero()` (≥ 0, para stock inicial/mínimo y conteos).
 - Búsquedas mientras se escribe: `useRetrasado()` de `src/lib/useRetrasado.ts` (250 ms).
 - Formularios: `onChange` en el `<form>` borra el aviso de error en cuanto el usuario corrige algo.
 - Al guardar, en `onSuccess` se hace `await queryClient.invalidateQueries(...)` ANTES de mostrar el aviso de éxito: así el aviso y los datos en pantalla nunca se contradicen (el botón sigue en "Guardando…" mientras se recarga).
-- Diseño: colores en `@theme` de `src/index.css` (`tinta`, `pared`, `papel`, `linea`, `cartulina`, `verde`, `rojo`). El amarillo `cartulina` (componente `Etiqueta`, forma de cartel de precio) se usa SOLO para montos de dinero importantes. Cifras grandes con la utilidad `cifra`. Componentes base en `src/componentes/ui.tsx` (`Boton`, `Campo`, `Aviso`, `Etiqueta`).
+- Diseño: colores en `@theme` de `src/index.css` (`tinta`, `pared`, `papel`, `linea`, `cartulina`, `verde`, `rojo`, y `dato` = azul #2a6fd0 solo para barras de gráficos, validado en contraste y croma). El amarillo `cartulina` (componente `Etiqueta`, forma de cartel de precio) se usa SOLO para montos de dinero importantes. Cifras grandes con la utilidad `cifra`. Componentes base en `src/componentes/ui.tsx` (`Boton`, `Campo`, `Aviso`, `Etiqueta`).
 - Textos de la interfaz en español claro, desde el punto de vista del cajero ("Abrir caja", "Efectivo que debe haber en el cajón").
 
 ## Pantalla de venta (cómo está implementada)
@@ -134,4 +134,10 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - `src/clientes/FormCliente.tsx`: crear/editar (DNI 8 dígitos, celular 9 dígitos que empieza con 9, `null` para borrarlos al editar). El campo de límite de crédito solo aparece para el ADMIN; al cajero se le explica que lo asigna el administrador.
 - `src/clientes/PanelCliente.tsx`: `GET /clientes/:id/estado-cuenta` (clave `['clientes','cuenta',id]`): deuda en `Etiqueta`, límite y crédito disponible, cobro de pago a cuenta (`POST /clientes/:id/pagos`, botón "Todo", no deja cobrar más que la deuda) y estado de cuenta, lo más reciente primero.
 - El pago entra al efectivo del turno: tras cobrar se invalidan `['clientes']` y `['caja']`.
+
+## Reportes (frontend)
+- `src/paginas/Reportes.tsx`: un selector de periodo arriba (Hoy, Ayer, Últimos 7 días, Este mes, Otro periodo con fechas) gobierna resumen, gráficos y ranking. Fechas en hora de Lima con `src/lib/fechas.ts` (`hoyEnLima`, `sumarDias`, `inicioDeMes`, `diasEntre`). Valida "desde ≤ hasta" y máximo un año antes de consultar.
+- Usa `GET /reportes/resumen`, `GET /reportes/productos?orden=cantidad|importe|ganancia&limite=10` y `GET /reportes/inventario` (este último no depende del periodo). Al cambiar de periodo se conserva lo anterior con opacidad (`placeholderData`) en vez de parpadear.
+- `src/reportes/Columnas.tsx`: gráfico de columnas de UNA serie hecho con HTML/CSS (sin librerías): columnas ≤ 24 px con punta redondeada de 4 px y 2 px de separación, cada columna es un botón (detalle al pasar el mouse o con Tab), se rotula solo la mayor, y "Ver como tabla" muestra todos los valores. Eje de horas en formato 24 h.
+- Ventas por hora: de 7 a 21 como mínimo (se amplía si hubo ventas fuera). Ventas por día: se rellenan los días sin ventas si el periodo tiene hasta 62 días.
 

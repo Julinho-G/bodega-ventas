@@ -29,7 +29,10 @@ export default function Marco() {
             <Enlace a="/clientes">Clientes</Enlace>
             <Enlace a="/caja">Mi caja</Enlace>
             {usuario.rol === 'ADMIN' && (
-              <Enlace a="/productos">Productos</Enlace>
+              <>
+                <Enlace a="/productos">Productos</Enlace>
+                <Enlace a="/reportes">Reportes</Enlace>
+              </>
             )}
           </nav>
           <div className="ml-auto flex items-center gap-4">

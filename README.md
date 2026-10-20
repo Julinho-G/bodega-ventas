@@ -83,7 +83,8 @@ bodega-ventas/
 │       ├── venta/         buscador, carrito y cobro de la pantalla de venta
 │       ├── productos/     formulario, ingresos/mermas/conteos y kardex
 │       ├── clientes/      formulario y ficha con cobros y estado de cuenta
-│       └── paginas/       Ingreso, Vender, Ventas, Clientes, Caja, Productos
+│       ├── reportes/      gráfico de columnas
+│       └── paginas/       Ingreso, Vender, Ventas, Clientes, Caja, Productos, Reportes
 └── backend/
     ├── prisma/
     │   ├── schema.prisma  modelo de datos
