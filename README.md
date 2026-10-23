@@ -63,15 +63,31 @@ Desde `D:\bodega-ventas` (sin entrar a `backend`) también funcionan:
 |---|---|
 | `npm run dev` | Arranca la API (backend) |
 | `npm run web` | Arranca la pantalla de caja (frontend) en http://localhost:5173 |
-| `npm run test:e2e` | Corre las pruebas de punta a punta |
+| `npm run test:e2e` | Pruebas de la API (backend) |
+| `npm run test:web` | Pruebas de las pantallas en un navegador real (ver abajo) |
 | `npm run db:migrate` | Aplica migraciones pendientes y regenera el cliente de Prisma |
 | `npm run db:studio` | Abre el visor de la base de datos |
+
+## Pruebas de las pantallas (Playwright)
+
+```bash
+npm run test:web
+```
+
+Un navegador (Microsoft Edge, que ya viene en Windows) usa el sistema como lo haría el cajero o el administrador: ingresa, abre caja, vende con el lector de código de barras, fía, cobra, anula, registra productos y revisa los reportes. Tarda alrededor de un minuto.
+
+- **No toca tus datos:** usa una base de datos aparte, `bodega_test`, que se borra y se vuelve a crear en cada corrida. Levanta su propia API (puerto 3001) y su propia web (puerto 5174), así que puedes tenerla corriendo junto con `npm run dev` y `npm run web`.
+- **Solo necesita** Docker encendido.
+- **Si algo falla:** `npm --prefix frontend run test:web:reporte` abre un reporte con la captura de pantalla y el paso exacto donde falló.
+
+Las pruebas están en `frontend/e2e/`, una por pantalla.
 
 ## Problemas comunes
 - **`db: "sin conexión"`** → Docker Desktop no está abierto o el contenedor no arrancó: `docker compose ps`.
 - **Puerto ocupado** → el proyecto usa el 5440 para no chocar con PostgreSQL instalados en Windows. Si también estuviera ocupado, cambia el primer número en `docker-compose.yml` y el puerto en `.env`.
 - **El frontend dice "No hay conexión con el sistema"** → la API no está encendida: `npm run dev` en otra terminal.
 - **`Port 5173 is already in use`** → ya tienes el frontend abierto en otra terminal.
+- **`test:web` dice "Process from config.webServer was not able to start"** → mira las líneas `[api-pruebas]` de arriba: casi siempre es Docker apagado, o un puerto (3001 o 5174) ocupado por una corrida anterior que no terminó.
 - **`EADDRINUSE: address already in use :::3000`** → la API ya está encendida en otra terminal. Usa esa, o ciérrala: `netstat -ano | findstr :3000` y luego `taskkill /PID <número> /F`.
 - **Cambié `schema.prisma`** → ejecuta `npm run db:migrate` (crea la migración y regenera el cliente).
 

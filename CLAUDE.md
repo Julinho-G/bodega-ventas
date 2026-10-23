@@ -29,6 +29,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - `npm run build` (incluye `tsc`), `npm run lint` (oxlint), `npm run format` (prettier)
 - Variables en `frontend/.env`: `VITE_API_URL`, `VITE_NOMBRE_BODEGA` (nombre de la tienda; si falta, `NOMBRE_BODEGA` de `src/lib/textos.ts` usa "BODEGA D' CONSTANTINA")
 - Desde la raíz: `npm run web`
+- `npm run test:web` – pruebas de las pantallas con Playwright (ver "Pruebas del frontend")
 
 ## Reglas de negocio (no romper)
 1. **Dinero y cantidades siempre `Decimal`**, nunca `float`/`number` para cálculos de montos. Usar `Prisma.Decimal` en la lógica.
@@ -81,7 +82,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
 - [x] Fase 3: Backend: auth JWT y usuarios, categorías y productos, caja (turnos), ventas (transacción), clientes y fiado, inventario, reportes: **backend completo**
 - [x] Fase 4: Frontend: login, abrir/cerrar caja, pantalla de venta con lector de código de barras, historial y anulación, productos e inventario, clientes y fiado, reportes: **frontend completo**
-- [ ] Fase 5: Pruebas, Swagger, despliegue (hecho: Swagger)
+- [ ] Fase 5: Pruebas, Swagger, despliegue (hecho: Swagger y pruebas del frontend con Playwright; falta el despliegue)
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
 
 ## Documentación Swagger (cómo está implementada)
@@ -152,4 +153,13 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Usa `GET /reportes/resumen`, `GET /reportes/productos?orden=cantidad|importe|ganancia&limite=10` y `GET /reportes/inventario` (este último no depende del periodo). Al cambiar de periodo se conserva lo anterior con opacidad (`placeholderData`) en vez de parpadear.
 - `src/reportes/Columnas.tsx`: gráfico de columnas de UNA serie hecho con HTML/CSS (sin librerías): columnas ≤ 24 px con punta redondeada de 4 px y 2 px de separación, cada columna es un botón (detalle al pasar el mouse o con Tab), se rotula solo la mayor, y "Ver como tabla" muestra todos los valores. Eje de horas en formato 24 h.
 - Ventas por hora: de 7 a 21 como mínimo (se amplía si hubo ventas fuera). Ventas por día: se rellenan los días sin ventas si el periodo tiene hasta 62 días.
+
+## Pruebas del frontend (cómo están implementadas)
+- Playwright (`@playwright/test`, versión exacta) en `frontend/e2e/`, una prueba por pantalla: `ingreso-y-caja`, `venta`, `ventas-turno`, `productos`, `clientes`, `reportes`. Configuración en `frontend/playwright.config.ts`.
+- Navegador: Microsoft Edge en Windows (`channel: 'msedge'`, no hay que descargar nada); `PW_CHROMIUM=<ruta>` usa otro Chromium.
+- Servidores PROPIOS (`webServer`), aparte de los de desarrollo: API en 3001 y web en 5174 (`VITE_API_URL` apunta a 3001). La API la levanta `backend/scripts/api-pruebas.mjs`, que borra y crea la base `bodega_test` (mismo PostgreSQL, otra base), ejecuta los `migration.sql` en orden con `pg`, corre el seed con `tsx` y compila con `tsc` en `dist-pruebas/` (excluida en los tsconfig y en `.gitignore`), para no pisar el `dist/` de `npm run dev`.
+- Como la base empieza igual en cada corrida, las pruebas usan los productos del seed por id (`PRODUCTO` en `e2e/ayudas.ts`) y montos exactos.
+- Cada prueba que vende crea su propio cajero (`crearCajero()`): así cada una tiene su caja y no dependen del orden. Se corren de a una (`workers: 1`).
+- `test` de `e2e/ayudas.ts` falla si la página tuvo errores de JavaScript; los datos se preparan con `llamar()` (API directa) y lo que se prueba se hace por pantalla.
+- Al cambiar textos de la interfaz, actualizar las pruebas que los buscan.
 
