@@ -1,22 +1,24 @@
-# Sistema de Ventas – Bodega
+# Sistema de Ventas – BODEGA D' CONSTANTINA
 
-Punto de venta para bodega: productos (por unidad y a granel), caja por turnos, ventas con Yape/Plin/efectivo/tarjeta, fiado e inventario auditable.
+Punto de venta para la bodega: productos (por unidad y a granel), caja por turnos, ventas con Yape/Plin/efectivo/tarjeta, fiado e inventario auditable.
 
 ## Requisitos (instalar una sola vez)
 
 | Herramienta | Versión | Descarga |
 |---|---|---|
-| Node.js | 22 LTS o superior | https://nodejs.org |
+| Node.js | **24 LTS** (botón "LTS" de la página; Node 25 ya no recibe parches) | https://nodejs.org |
 | Docker Desktop | reciente | https://www.docker.com/products/docker-desktop |
 | Git | reciente | https://git-scm.com |
 | VS Code + extensiones: Prisma, ESLint, Prettier | — | https://code.visualstudio.com |
 
 Comprueba en una terminal:
 ```bash
-node -v
+node -v          # debe empezar con v24
 docker -v
 git --version
 ```
+
+**Cambiar de versión de Node en Windows:** descarga el instalador **24 LTS** de https://nodejs.org y ejecútalo; reemplaza la versión que tengas. Luego cierra y vuelve a abrir VS Code, y reinstala las dependencias (`npm ci` dentro de `backend` y de `frontend`).
 
 ## Puesta en marcha
 

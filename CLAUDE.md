@@ -3,12 +3,13 @@
 Contexto del proyecto para Claude (VS Code / Claude Code). Responde y comenta el código **en español**.
 
 ## Qué es
-Sistema de punto de venta (POS) para una bodega en Perú. Uso **solo presencial** (caja).
+Sistema de punto de venta (POS) para **BODEGA D' CONSTANTINA**, una bodega en Perú. Uso **solo presencial** (caja).
 Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien comentado y fácil de sustentar.
 
 ## Stack
+- **Node.js 24 LTS** (`.nvmrc`, `engines` en los package.json). npm 11, que viene con Node 24: los `package-lock.json` necesitan npm 11 para `npm ci`.
 - **Backend:** NestJS 11 + TypeScript (carpeta `backend/`)
-- **ORM:** Prisma 7 con `@prisma/adapter-pg`. Cliente generado en `backend/src/generated/prisma` (no editar, no versionar).
+- **ORM:** Prisma 7 (7.10.1, versión exacta igual en `prisma`, `@prisma/client` y `@prisma/adapter-pg`) con `@prisma/adapter-pg`. Cliente generado en `backend/src/generated/prisma` (no editar, no versionar).
 - **Base de datos:** PostgreSQL 17 en Docker (`docker-compose.yml`), expuesto en el puerto **5440** (5432/5433 los ocupan PostgreSQL locales de Windows)
 - **Frontend (hecho):** React 19 + Vite + TypeScript + Tailwind CSS 4 + TanStack Query + React Router (carpeta `frontend/`)
 - **Auth (hecho):** JWT (`@nestjs/jwt`) con roles `ADMIN` y `CAJERO`; contraseñas con `bcryptjs`
@@ -26,7 +27,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 ## Comandos del frontend (desde `frontend/`)
 - `npm run dev` – http://localhost:5173 (puerto fijo: el backend solo acepta ese origen por CORS)
 - `npm run build` (incluye `tsc`), `npm run lint` (oxlint), `npm run format` (prettier)
-- Variables en `frontend/.env`: `VITE_API_URL`, `VITE_NOMBRE_BODEGA`
+- Variables en `frontend/.env`: `VITE_API_URL`, `VITE_NOMBRE_BODEGA` (nombre de la tienda; si falta, `NOMBRE_BODEGA` de `src/lib/textos.ts` usa "BODEGA D' CONSTANTINA")
 - Desde la raíz: `npm run web`
 
 ## Reglas de negocio (no romper)
@@ -84,6 +85,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
 
 ## Documentación Swagger (cómo está implementada)
+- `@nestjs/swagger` 11.4.7 trae `js-yaml` 5.3.0 con un aviso de seguridad: `overrides` en `backend/package.json` lo fija en 5.4.3. Quitarlo cuando una versión 11.x de Swagger traiga la corregida. No usar `npm audit fix --force` (instala Swagger 12, que exige NestJS 12).
 - `src/configurar-documentacion.ts` arma el documento (título, guía de uso, `addBearerAuth`) y lo publica en `/api/docs`. Lo llaman `main.ts` y `test/documentacion.e2e-spec.ts`.
 - El plugin de `@nestjs/swagger` (en `nest-cli.json`) lee los DTOs: tipos, opcionales, reglas de `class-validator` y los comentarios `/** */` como descripción. Por eso los DTOs deben terminar en `.dto.ts`.
 - En los controladores el plugin está APAGADO a propósito (`controllerFileNameSuffix` con un sufijo que no existe): las respuestas son tipos de Prisma que el plugin no describe bien. Cada controlador lleva a mano `@ApiTags('Sección')`, `@ApiBearerAuth()` (salvo health; en auth solo `perfil`) y `@ApiOperation({ summary })` por ruta, con "· solo ADMIN" cuando corresponde.
@@ -109,8 +111,9 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Todas las peticiones pasan por `api()` de `src/lib/api.ts`: agrega el token y convierte los errores de NestJS en `ErrorApi` (`status` + `message` legible). Un 401 con sesión abierta cierra la sesión.
 - Datos del servidor con TanStack Query (`useQuery` / `useMutation`); después de modificar algo, `invalidateQueries` de la clave afectada (ej. `['caja']`).
 - Sesión en `src/sesion/`: `ProveedorSesion` guarda `{ token, usuario }` en localStorage (`bodega.sesion`, siempre con try/catch) y la valida con `/auth/perfil` al abrir. Usar el hook `useSesion()`.
+- Cabecera (`Marco.tsx`): menos de 1024 px → nombre de la tienda y "Salir" en la primera fila, secciones en la segunda (con scroll horizontal); desde 1024 px todo en una fila, y el nombre del usuario solo aparece desde 1280 px para que quepa.
 - Rutas: `/ingresar` pública; el resto va dentro de `<Marco>` (exige sesión, muestra la cabecera con la navegación). `/` = Vender, `/ventas` = Ventas del turno, `/clientes` = Clientes, `/caja` = Mi caja, `/productos` = Productos y `/reportes` = Reportes (solo ADMIN: el enlace no se muestra al cajero y la página muestra un aviso).
-- `GET /caja/actual` responde 400 si no hay turno: en el frontend eso significa "caja cerrada", no un error.
+- `GET /caja/actual` responde 200 con `{ turno: null, resumen: null }` si la caja está cerrada; `obtenerCaja()` lo convierte en `null`. Las acciones que SÍ exigen caja (vender, cerrar, cobrar fiado) siguen respondiendo 400.
 - Montos: la API los envía como texto; `soles()` de `src/lib/dinero.ts` solo los formatea. Los cálculos de dinero se hacen en el backend. Para leer lo que escribe el usuario: `leerMonto()` (acepta coma o punto, máx. 2 decimales), `leerCantidad()` (> 0) y `leerCantidadOCero()` (≥ 0, para stock inicial/mínimo y conteos).
 - Búsquedas mientras se escribe: `useRetrasado()` de `src/lib/useRetrasado.ts` (250 ms).
 - Formularios: `onChange` en el `<form>` borra el aviso de error en cuanto el usuario corrige algo.

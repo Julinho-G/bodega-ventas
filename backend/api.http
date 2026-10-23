@@ -164,7 +164,7 @@ Content-Type: application/json
   "montoInicial": 50
 }
 
-### 19. Ver mi turno abierto y el resumen en vivo
+### 19. Ver mi turno abierto y el resumen en vivo (con la caja cerrada: { "turno": null, "resumen": null })
 GET {{base}}/caja/actual
 Authorization: Bearer {{token}}
 

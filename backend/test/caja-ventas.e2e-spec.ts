@@ -371,6 +371,13 @@ describe('Caja y ventas (e2e)', () => {
     expect(Number((res.body as { diferencia: string }).diferencia)).toBe(-1);
   });
 
+  it('con la caja cerrada, GET /caja/actual responde 200 con turno null (no es un error)', async () => {
+    const res = await con(tokenCajero1, http().get('/api/caja/actual')).expect(
+      200,
+    );
+    expect(res.body).toEqual({ turno: null, resumen: null });
+  });
+
   it('con la caja cerrada no se vende, y el cajero ya no puede anular esa venta', async () => {
     await con(tokenCajero1, http().post('/api/ventas'))
       .send({

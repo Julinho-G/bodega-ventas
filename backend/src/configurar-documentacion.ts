@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 const DESCRIPCION = `
-API del sistema de ventas para bodega (ventas en tienda).
+Sistema de ventas de **BODEGA D' CONSTANTINA** (ventas en tienda).
 
 **Cómo probar desde esta página**
 1. Abre *Acceso → POST /api/auth/login*, pulsa **Try it out** y envía \`{ "usuario": "admin", "password": "admin123" }\`.
@@ -26,7 +26,7 @@ export function configurarDocumentacion(app: INestApplication): void {
   if (process.env.API_DOCS === 'false') return;
 
   const config = new DocumentBuilder()
-    .setTitle('API de la bodega')
+    .setTitle("API · BODEGA D' CONSTANTINA")
     .setDescription(DESCRIPCION)
     .setVersion('1.0')
     .addBearerAuth({
@@ -39,7 +39,7 @@ export function configurarDocumentacion(app: INestApplication): void {
 
   const documento = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, documento, {
-    customSiteTitle: 'API de la bodega',
+    customSiteTitle: "API · BODEGA D' CONSTANTINA",
     swaggerOptions: {
       persistAuthorization: true, // el token no se pierde al recargar la página
       docExpansion: 'none', // las secciones empiezan cerradas

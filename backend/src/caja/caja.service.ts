@@ -38,9 +38,13 @@ export class CajaService {
     });
   }
 
-  /** Turno abierto del usuario con su resumen en vivo */
+  /**
+   * Turno abierto del usuario con su resumen en vivo.
+   * Tener la caja cerrada no es un error: responde 200 con { turno: null, resumen: null }.
+   */
   async actual(usuarioId: number) {
-    const turno = await this.obtenerTurnoAbierto(usuarioId);
+    const turno = await this.buscarTurnoAbierto(usuarioId);
+    if (!turno) return { turno: null, resumen: null };
     return { turno, resumen: await this.resumen(turno.id) };
   }
 

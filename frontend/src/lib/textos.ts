@@ -1,6 +1,10 @@
 /** Nombres para mostrar en pantalla (la API usa códigos en mayúsculas) */
 import type { MetodoPago, TipoMovimiento, Unidad } from '../tipos';
 
+/** Nombre de la tienda: se cambia en frontend/.env (VITE_NOMBRE_BODEGA) sin tocar el código */
+export const NOMBRE_BODEGA =
+  import.meta.env.VITE_NOMBRE_BODEGA?.trim() || "BODEGA D' CONSTANTINA";
+
 export const NOMBRE_METODO: Record<MetodoPago, string> = {
   EFECTIVO: 'Efectivo',
   YAPE: 'Yape',

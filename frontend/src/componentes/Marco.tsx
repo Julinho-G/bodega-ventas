@@ -2,8 +2,8 @@
 import { LogOut } from 'lucide-react';
 import { Navigate, NavLink, Outlet } from 'react-router';
 import { useSesion } from '../sesion/useSesion';
+import { NOMBRE_BODEGA } from '../lib/textos';
 
-const NOMBRE_BODEGA = import.meta.env.VITE_NOMBRE_BODEGA ?? 'Mi Bodega';
 const NOMBRE_ROL = { ADMIN: 'Administrador', CAJERO: 'Cajero' } as const;
 
 export default function Marco() {
@@ -17,12 +17,13 @@ export default function Marco() {
   return (
     <div className="min-h-dvh">
       <header className="border-b border-linea bg-papel">
-        {/* En pantallas angostas: nombre y "Salir" arriba, las secciones en una segunda fila */}
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <p className="cifra text-2xl">{NOMBRE_BODEGA}</p>
+        {/* Menos de 1024 px: nombre y "Salir" arriba, las secciones en una segunda fila.
+            De 1024 a 1279 px todo va en una fila y se oculta el nombre del usuario para que quepa. */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:gap-x-6">
+          <p className="cifra text-xl sm:text-2xl">{NOMBRE_BODEGA}</p>
           <nav
             aria-label="Secciones"
-            className="order-last -mx-1 flex w-full gap-1 overflow-x-auto px-1 md:order-none md:w-auto"
+            className="order-last -mx-1 flex w-full gap-1 overflow-x-auto px-1 lg:order-none lg:w-auto"
           >
             <Enlace a="/">Vender</Enlace>
             <Enlace a="/ventas">Ventas</Enlace>
@@ -36,7 +37,7 @@ export default function Marco() {
             )}
           </nav>
           <div className="ml-auto flex items-center gap-4">
-            <div className="hidden text-right leading-tight sm:block">
+            <div className="hidden text-right leading-tight sm:block lg:hidden xl:block">
               <p className="font-semibold">{usuario.nombre}</p>
               <p className="text-sm text-tinta-suave">
                 {NOMBRE_ROL[usuario.rol]}

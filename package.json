@@ -2,6 +2,9 @@
   "name": "bodega-ventas",
   "private": true,
   "description": "Sistema de ventas para bodega. Atajos para ejecutar los comandos del backend y del frontend desde la carpeta raíz.",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "npm --prefix backend run start:dev",
     "start:dev": "npm --prefix backend run start:dev",

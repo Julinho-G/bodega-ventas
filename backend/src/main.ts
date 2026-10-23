@@ -11,7 +11,9 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
-  console.log(`API de la bodega lista en http://localhost:${port}/api`);
+  console.log(
+    `API de BODEGA D' CONSTANTINA lista en http://localhost:${port}/api`,
+  );
   if (process.env.API_DOCS !== 'false') {
     console.log(`Documentación en http://localhost:${port}/api/docs`);
   }

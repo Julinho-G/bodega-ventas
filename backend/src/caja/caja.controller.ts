@@ -31,8 +31,11 @@ export class CajaController {
     return this.caja.abrir(usuario.id, dto.montoInicial);
   }
 
-  /** GET /api/caja/actual  → mi turno abierto + resumen en vivo */
-  @ApiOperation({ summary: 'Mi turno abierto con el resumen en vivo' })
+  /** GET /api/caja/actual  → mi turno abierto + resumen en vivo ({ turno: null } si está cerrada) */
+  @ApiOperation({
+    summary:
+      'Mi turno abierto con el resumen en vivo (turno: null si la caja está cerrada)',
+  })
   @Get('actual')
   actual(@UsuarioActual() usuario: UsuarioAutenticado) {
     return this.caja.actual(usuario.id);

@@ -3,9 +3,8 @@ import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router';
 import { Aviso, Boton, Campo, Etiqueta } from '../componentes/ui';
 import { ErrorApi } from '../lib/api';
+import { NOMBRE_BODEGA } from '../lib/textos';
 import { useSesion } from '../sesion/useSesion';
-
-const NOMBRE_BODEGA = import.meta.env.VITE_NOMBRE_BODEGA ?? 'Mi Bodega';
 
 export default function Ingreso() {
   const { usuario, ingresar } = useSesion();
