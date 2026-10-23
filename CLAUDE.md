@@ -82,7 +82,7 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - [x] Fase 2: entorno (Docker, NestJS, Prisma, seed)
 - [x] Fase 3: Backend: auth JWT y usuarios, categorías y productos, caja (turnos), ventas (transacción), clientes y fiado, inventario, reportes: **backend completo**
 - [x] Fase 4: Frontend: login, abrir/cerrar caja, pantalla de venta con lector de código de barras, historial y anulación, productos e inventario, clientes y fiado, reportes: **frontend completo**
-- [ ] Fase 5: Pruebas, Swagger, despliegue (hecho: Swagger y pruebas del frontend con Playwright; falta el despliegue)
+- [x] Fase 5: Swagger, pruebas del frontend con Playwright y despliegue local con Docker (`produccion/`)
 - [ ] V2: boleta electrónica SUNAT, proveedores/compras
 
 ## Documentación Swagger (cómo está implementada)
@@ -162,4 +162,16 @@ Proyecto de estudiante de Ingeniería de Sistemas: prioriza código claro, bien 
 - Cada prueba que vende crea su propio cajero (`crearCajero()`): así cada una tiene su caja y no dependen del orden. Se corren de a una (`workers: 1`).
 - `test` de `e2e/ayudas.ts` falla si la página tuvo errores de JavaScript; los datos se preparan con `llamar()` (API directa) y lo que se prueba se hace por pantalla.
 - Al cambiar textos de la interfaz, actualizar las pruebas que los buscan.
+
+## Producción (cómo está implementada)
+- Despliegue LOCAL en la laptop/PC de la bodega con Docker (funciona sin internet, costo S/ 0). Guía para el usuario: `produccion/INSTALAR.md`.
+- `produccion/docker-compose.yml` (proyecto `bodega-produccion`, aparte del compose de desarrollo): `db` (PostgreSQL 17, sin puertos publicados, volumen `datos`), `api`, `web` (Caddy en `PUERTO`, por defecto 8080) y `respaldos`. Variables en `produccion/.env` (plantilla `.env.example`): `DB_PASSWORD`, `JWT_SECRET`, `ADMIN_PASSWORD`, `NOMBRE_BODEGA`, `PUERTO`, `CARPETA_RESPALDOS`, `DIAS_A_GUARDAR`.
+- `backend/Dockerfile`: compila en una etapa; la imagen final tiene solo dependencias de producción (`prisma` está en `dependencies` para poder ejecutar `migrate deploy`). Al arrancar: `prisma migrate deploy` → `node dist/inicializar.js` → `node dist/main.js`.
+- `src/inicializar.ts`: si no hay usuarios crea `admin` con `ADMIN_PASSWORD` (mínimo 8, si falta la API no arranca); si no hay categorías crea `CATEGORIAS_INICIALES` (`src/common/categorias-iniciales.ts`, compartidas con el seed). Nunca crea productos de ejemplo.
+- Con `NODE_ENV=production` la API exige `JWT_SECRET` de 32 caracteres o más (`auth.module.ts`). Swagger apagado (`API_DOCS=false`).
+- `frontend/Dockerfile` compila con `VITE_API_URL=/api` (misma dirección, sin CORS) y sirve con Caddy (`frontend/Caddyfile`): `/api/*` → `api:3000`; lo demás → `/srv` con `try_files` a `index.html`; `/assets/*` en caché un año, el resto `no-cache`.
+- `produccion/respaldar.sh` (contenedor `respaldos`): `pg_dump -Fc` si la última copia tiene más de 20 h, revisa cada hora, borra las de más de `DIAS_A_GUARDAR` días; `sh /respaldar.sh ahora` hace una al momento. `restaurar.sh <archivo>` guarda antes el estado actual y restaura con `pg_restore --clean --single-transaction` (con la API detenida).
+- npm 11 bloquea los scripts de instalación de las dependencias que no están aprobados: `allowScripts` en `backend/package.json` aprueba `prisma` y `@prisma/engines` (descargan el motor de migraciones) y rechaza el resto. Si una dependencia nueva necesita su script, aprobarla con `npm install-scripts approve <paquete>`.
+- Atajos desde la raíz: `npm run prod:instalar`, `prod:estado`, `prod:logs`, `prod:respaldar`.
+- Pendiente para producción: no hay pantalla de usuarios (crear cajeros o cambiar contraseñas se hace por la API: `POST /usuarios`, `PATCH /usuarios/:id`).
 

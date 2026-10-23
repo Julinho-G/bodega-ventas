@@ -6,3 +6,6 @@ dist-pruebas/
 coverage/
 backend/src/generated/
 .DS_Store
+
+# Copias de seguridad de producción (si se dejan en la carpeta por defecto)
+produccion/respaldos/

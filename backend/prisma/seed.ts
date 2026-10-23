@@ -11,6 +11,7 @@ import {
   Rol,
   UnidadMedida,
 } from '../src/generated/prisma/client';
+import { CATEGORIAS_INICIALES } from '../src/common/categorias-iniciales';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -31,16 +32,8 @@ async function main() {
   });
 
   // 2. Categorías típicas de una bodega
-  const nombresCategorias = [
-    'Abarrotes',
-    'Bebidas',
-    'Lácteos',
-    'Limpieza',
-    'Snacks',
-    'Panadería',
-  ];
   const categorias: Record<string, number> = {};
-  for (const nombre of nombresCategorias) {
+  for (const nombre of CATEGORIAS_INICIALES) {
     const c = await prisma.categoria.upsert({
       where: { nombre },
       update: {},

@@ -1,0 +1,78 @@
+# Sistema de ventas en modo PRODUCCIÓN: la bodega de verdad.
+# Está aparte del docker-compose.yml de la raíz (desarrollo): otra base de datos y otro volumen,
+# así programar o correr pruebas nunca toca las ventas reales.
+#
+# Desde esta carpeta (produccion/):
+#   docker compose up -d --build     instalar o actualizar (los datos se conservan)
+#   docker compose ps                ver si todo está funcionando
+#   docker compose logs -f api       ver qué está pasando en la API
+#   docker compose down              apagar (los datos se conservan)
+# Guía completa: produccion/INSTALAR.md
+name: bodega-produccion
+
+services:
+  # Base de datos. No se publica ningún puerto: solo la API la puede usar.
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bodega
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en produccion/.env}
+      POSTGRES_DB: bodega
+      TZ: America/Lima
+    volumes:
+      - datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bodega -d bodega"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # API (NestJS). Al arrancar aplica migraciones y, si la base está vacía, crea el admin.
+  api:
+    build: ../backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://bodega:${DB_PASSWORD}@db:5432/bodega?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET en produccion/.env}
+      JWT_HORAS: ${JWT_HORAS:-12}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      API_DOCS: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Pantallas + servidor web (Caddy). Es lo único que se abre en el navegador.
+  web:
+    build:
+      context: ../frontend
+      args:
+        NOMBRE_BODEGA: ${NOMBRE_BODEGA:-BODEGA D' CONSTANTINA}
+    restart: unless-stopped
+    ports:
+      - "${PUERTO:-8080}:80"
+    depends_on:
+      - api
+
+  # Copia de seguridad automática (pg_dump) a la carpeta CARPETA_RESPALDOS.
+  respaldos:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: bodega
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: bodega
+      DIAS_A_GUARDAR: ${DIAS_A_GUARDAR:-30}
+      TZ: America/Lima
+    volumes:
+      - ${CARPETA_RESPALDOS:-./respaldos}:/respaldos
+      - ./respaldar.sh:/respaldar.sh:ro
+      - ./restaurar.sh:/restaurar.sh:ro
+    command: ["sh", "/respaldar.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  datos:

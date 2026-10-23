@@ -17,6 +17,12 @@ import { RolesGuard } from './guards/roles.guard';
         if (!secret) {
           throw new Error('Falta JWT_SECRET en el archivo .env');
         }
+        // En producción una clave corta se podría adivinar y falsificar sesiones
+        if (process.env.NODE_ENV === 'production' && secret.length < 32) {
+          throw new Error(
+            'En producción JWT_SECRET debe tener al menos 32 caracteres',
+          );
+        }
         // El token dura un turno de trabajo (por defecto 8 horas)
         const horas = Number(config.get<string>('JWT_HORAS') ?? 8);
         return { secret, signOptions: { expiresIn: horas * 3600 } };

@@ -82,6 +82,18 @@ Un navegador (Microsoft Edge, que ya viene en Windows) usa el sistema como lo ha
 
 Las pruebas están en `frontend/e2e/`, una por pantalla.
 
+## Instalar en la bodega (producción)
+
+Para usar el sistema de verdad en la tienda, en tu laptop, sin internet y sin costo, sigue **[produccion/INSTALAR.md](produccion/INSTALAR.md)**. En resumen:
+
+```powershell
+cd produccion
+copy .env.example .env      # completar las claves
+docker compose up -d --build
+```
+
+Queda en **http://localhost:8080**, arranca solo con Windows, hace una copia de seguridad diaria (por ejemplo a OneDrive) y usa una base de datos **aparte** de la de desarrollo.
+
 ## Problemas comunes
 - **`db: "sin conexión"`** → Docker Desktop no está abierto o el contenedor no arrancó: `docker compose ps`.
 - **Puerto ocupado** → el proyecto usa el 5440 para no chocar con PostgreSQL instalados en Windows. Si también estuviera ocupado, cambia el primer número en `docker-compose.yml` y el puerto en `.env`.
@@ -94,7 +106,8 @@ Las pruebas están en `frontend/e2e/`, una por pantalla.
 ## Estructura
 ```
 bodega-ventas/
-├── docker-compose.yml     PostgreSQL
+├── docker-compose.yml     PostgreSQL para desarrollo
+├── produccion/            instalación real: docker-compose, copias de seguridad, guía
 ├── CLAUDE.md              contexto para Claude en VS Code
 ├── frontend/              pantalla de caja (React + Vite)
 │   └── src/

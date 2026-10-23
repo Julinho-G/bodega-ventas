@@ -1,0 +1,10 @@
+# Lo que NO se copia a la imagen de Docker
+node_modules
+dist
+dist-pruebas
+src/generated
+coverage
+test
+.env
+*.log
+*.http

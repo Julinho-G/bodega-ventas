@@ -123,7 +123,9 @@ ejecutar('Compilando la API', [
 ]);
 
 // 5. Levantar la API (Playwright la detiene al terminar)
-console.log(`[api-pruebas] API de pruebas en http://localhost:${PUERTO_API}/api`);
+console.log(
+  `[api-pruebas] API de pruebas en http://localhost:${PUERTO_API}/api`,
+);
 const api = spawn(process.execPath, ['dist-pruebas/main.js'], {
   cwd: BACKEND,
   env: { ...process.env, ...entorno },

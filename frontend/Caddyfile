@@ -1,0 +1,24 @@
+# Servidor web de PRODUCCIÓN (Caddy), dentro del contenedor "web".
+# - /api/...  → se pasa a la API (contenedor "api", puerto 3000)
+# - lo demás  → las pantallas compiladas por Vite (carpeta /srv)
+:80 {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		# Rutas de la aplicación (/ventas, /reportes...): siempre se responde index.html
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Los archivos de /assets llevan un código en el nombre: se pueden guardar en caché un año
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	# Todo lo demás (index.html en cualquier ruta, la API) se revisa siempre:
+	# así una actualización del sistema se ve con solo recargar
+	@noAssets not path /assets/*
+	header @noAssets Cache-Control "no-cache"
+}
