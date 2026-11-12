@@ -31,11 +31,15 @@ if [ "${1:-}" = "ahora" ]; then
 fi
 
 echo "[respaldos] Copias automáticas en $CARPETA (se guardan ${DIAS_A_GUARDAR:-30} días)"
+# Al apagar el sistema (detener.cmd) Docker envía TERM: salir enseguida en vez de esperar 10 s
+trap 'exit 0' TERM INT
 while true; do
   # ¿Hay alguna copia de las últimas 20 horas (1200 minutos)?
   reciente=$(find "$CARPETA" -name 'bodega-*.dump' -mmin -1200 | head -n 1)
   if [ -z "$reciente" ]; then
     hacer_copia
   fi
-  sleep 3600
+  # "sleep &" + "wait": así el aviso de apagado se atiende sin esperar a que termine la hora
+  sleep 3600 &
+  wait $!
 done

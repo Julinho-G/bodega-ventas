@@ -8,7 +8,7 @@ Queda **separado** de lo que usas para programar. Las ventas reales viven en su 
 |---|---|---|
 | Dirección | localhost:5173 | **http://localhost:8080** |
 | Base de datos | `bodega_db` (pruebas) | `bodega` en el volumen `bodega-produccion_datos` |
-| Arranque | 2 terminales abiertas | Solo, al prender la laptop |
+| Arranque | 2 terminales abiertas | Doble clic en `iniciar.cmd` |
 
 ---
 
@@ -72,15 +72,38 @@ Debe decir `[inicializar] Usuario "admin" creado` y `6 categorías creadas`.
 
 La base empieza **vacía**: sin los productos de ejemplo de desarrollo. Registra tus productos en **Productos → Nuevo producto**.
 
-## 5. Que arranque solo
+## 5. Prender y apagar el sistema
 
-- **Docker Desktop → Settings → General →** marca **"Start Docker Desktop when you sign in to your computer"**.
-- Los contenedores tienen `restart: unless-stopped`: cuando Docker arranca, el sistema arranca también.
-- **Windows → Configuración → Sistema → Energía:** que la laptop **no se suspenda** mientras está enchufada (así no se corta en plena atención).
+El sistema **no se prende solo** al encender la laptop. Lo prendes cuando vas a atender:
+
+| Para… | Haz doble clic en | O desde la raíz del proyecto |
+|---|---|---|
+| **Prender** | `produccion\iniciar.cmd` | `npm run prod:iniciar` |
+| **Apagar** | `produccion\detener.cmd` | `npm run prod:detener` |
+
+`iniciar.cmd` abre Docker Desktop si está cerrado, prende el sistema, espera a que responda y abre la caja en el navegador. Para tenerlo a mano: clic derecho en `iniciar.cmd` → **Mostrar más opciones → Enviar a → Escritorio (crear acceso directo)**.
+
+Al apagar, tus ventas y productos **quedan guardados**.
+
+### Que Docker Desktop no se abra al prender la laptop
+
+**Docker Desktop → ⚙ Settings → General →** desmarca **"Start Docker Desktop when you sign in to your computer"** y pulsa **Apply**. Ya no hace falta, porque `iniciar.cmd` lo abre cuando lo necesitas.
+
+Si también se abre sola la ventana de la aplicación BODEGA instalada en Edge, entra a `edge://apps`, haz clic derecho en la aplicación y desmarca **"Iniciar automáticamente al iniciar sesión"**.
+
+### Para que no se corte mientras atiendes
+
+En **Windows → Configuración → Sistema → Energía**, configura que la laptop **no se suspenda** mientras está enchufada.
+
+### Cómo funciona
+
+Los servicios tienen `restart: "no"`: Docker **nunca** los prende por su cuenta, ni al abrir Docker Desktop ni después de apagar la laptop con el sistema encendido. Solo se prenden con `iniciar.cmd`.
+
+Si algún día la caja deja de responder mientras atiendes, vuelve a hacer doble clic en `iniciar.cmd`: prende de nuevo lo que se haya detenido, sin tocar tus datos.
 
 ## 6. Copias de seguridad
 
-Son **automáticas**. Mientras el sistema está prendido, se hace una copia al día en `CARPETA_RESPALDOS`, por ejemplo `bodega-2026-10-23_2200.dump`. Se guardan 30 días y las más antiguas se borran solas.
+Son **automáticas**. Mientras el sistema está prendido, se hace una copia al día en `CARPETA_RESPALDOS` (y al prenderlo, si la última tiene más de 20 horas), por ejemplo `bodega-2026-10-23_2200.dump`. Se guardan 30 días y las más antiguas se borran solas.
 
 Para hacer una copia **ahora mismo** (por ejemplo, antes de actualizar el sistema):
 
@@ -130,10 +153,10 @@ Si están conectados al **mismo WiFi** que la laptop:
 | `docker compose ps` | Ver si todo está funcionando |
 | `docker compose logs -f api` | Ver lo que pasa en la API (Ctrl + C para salir) |
 | `docker compose restart api` | Reiniciar la API |
-| `docker compose down` | Apagar el sistema (los datos **se conservan**) |
-| `docker compose up -d` | Prenderlo de nuevo |
+| `docker compose stop` | Apagar el sistema (los datos **se conservan**), igual que `detener.cmd` |
+| `docker compose up -d` | Prenderlo, igual que `iniciar.cmd` |
 
-Desde la raíz del proyecto también funcionan `npm run prod:instalar`, `npm run prod:estado`, `npm run prod:logs` y `npm run prod:respaldar`.
+Desde la raíz del proyecto también funcionan `npm run prod:iniciar`, `npm run prod:detener`, `npm run prod:instalar`, `npm run prod:estado`, `npm run prod:logs` y `npm run prod:respaldar`.
 
 > 🚫 **Nunca uses `docker compose down -v`.** La `-v` borra el volumen con **todas las ventas**.
 

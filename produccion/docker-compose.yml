@@ -2,6 +2,11 @@
 # Está aparte del docker-compose.yml de la raíz (desarrollo): otra base de datos y otro volumen,
 # así programar o correr pruebas nunca toca las ventas reales.
 #
+# NO se prende solo ("restart: no"): ni al prender la laptop ni al abrir Docker Desktop.
+# Se prende con iniciar.cmd (doble clic) y se apaga con detener.cmd.
+# (Con "on-failure" u otra política, Docker lo volvía a prender si la laptop se apagaba
+#  con el sistema encendido: los contenedores quedan con código de error y se reinician.)
+#
 # Desde esta carpeta (produccion/):
 #   docker compose up -d --build     instalar o actualizar (los datos se conservan)
 #   docker compose ps                ver si todo está funcionando
@@ -14,7 +19,7 @@ services:
   # Base de datos. No se publica ningún puerto: solo la API la puede usar.
   db:
     image: postgres:17-alpine
-    restart: unless-stopped
+    restart: "no"
     environment:
       POSTGRES_USER: bodega
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en produccion/.env}
@@ -31,7 +36,10 @@ services:
   # API (NestJS). Al arrancar aplica migraciones y, si la base está vacía, crea el admin.
   api:
     build: ../backend
-    restart: unless-stopped
+    restart: "no"
+    # Un proceso pequeño (tini) le pasa a Node la orden de apagado: detener.cmd tarda
+    # menos de un segundo en vez de esperar los 10 s que Docker da antes de forzar el cierre
+    init: true
     environment:
       DATABASE_URL: postgresql://bodega:${DB_PASSWORD}@db:5432/bodega?schema=public
       JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET en produccion/.env}
@@ -48,7 +56,7 @@ services:
       context: ../frontend
       args:
         NOMBRE_BODEGA: ${NOMBRE_BODEGA:-BODEGA D' CONSTANTINA}
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "${PUERTO:-8080}:80"
     depends_on:
@@ -57,7 +65,7 @@ services:
   # Copia de seguridad automática (pg_dump) a la carpeta CARPETA_RESPALDOS.
   respaldos:
     image: postgres:17-alpine
-    restart: unless-stopped
+    restart: "no"
     environment:
       PGHOST: db
       PGUSER: bodega

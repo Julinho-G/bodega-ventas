@@ -17,6 +17,8 @@
     "db:migrate": "npm --prefix backend run db:migrate",
     "db:studio": "npm --prefix backend run db:studio",
     "prod:instalar": "docker compose -f produccion/docker-compose.yml up -d --build",
+    "prod:iniciar": "docker compose -f produccion/docker-compose.yml up -d",
+    "prod:detener": "docker compose -f produccion/docker-compose.yml stop",
     "prod:estado": "docker compose -f produccion/docker-compose.yml ps",
     "prod:logs": "docker compose -f produccion/docker-compose.yml logs -f api",
     "prod:respaldar": "docker compose -f produccion/docker-compose.yml exec respaldos sh /respaldar.sh ahora"

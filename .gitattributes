@@ -3,3 +3,5 @@
 * text=auto eol=lf
 *.png binary
 *.woff2 binary
+# Los scripts de Windows necesitan fin de línea CRLF
+*.cmd text eol=crlf

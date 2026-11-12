@@ -92,7 +92,7 @@ copy .env.example .env      # completar las claves
 docker compose up -d --build
 ```
 
-Queda en **http://localhost:8080**, arranca solo con Windows, hace una copia de seguridad diaria (por ejemplo a OneDrive) y usa una base de datos **aparte** de la de desarrollo.
+Queda en **http://localhost:8080**. Se prende y se apaga con doble clic (`produccion/iniciar.cmd` y `detener.cmd`), hace una copia de seguridad diaria (por ejemplo a OneDrive) y usa una base de datos **aparte** de la de desarrollo.
 
 ## Problemas comunes
 - **`db: "sin conexión"`** → Docker Desktop no está abierto o el contenedor no arrancó: `docker compose ps`.
