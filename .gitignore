@@ -9,3 +9,4 @@ backend/src/generated/
 
 # Copias de seguridad de producción (si se dejan en la carpeta por defecto)
 produccion/respaldos/
+CLAUDE.md
